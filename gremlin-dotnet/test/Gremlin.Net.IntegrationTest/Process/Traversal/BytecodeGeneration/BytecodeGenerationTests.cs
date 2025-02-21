@@ -21,6 +21,7 @@
 
 #endregion
 
+using System;
 using Gremlin.Net.Process.Traversal;
 using Xunit;
 
@@ -31,7 +32,7 @@ namespace Gremlin.Net.IntegrationTest.Process.Traversal.BytecodeGeneration
         [Fact]
         public void GraphTraversalStepsShouldUnrollParamsParameters()
         {
-            var g = AnonymousTraversalSource.Traversal();
+            var g = AnonymousTraversalSource.Traversal().With(null);
 
             var bytecode = g.V().HasLabel("firstLabel", "secondLabel", "thirdLabel").Bytecode;
 
@@ -43,7 +44,7 @@ namespace Gremlin.Net.IntegrationTest.Process.Traversal.BytecodeGeneration
         [Fact]
         public void g_V_OutXcreatedX()
         {
-            var g = AnonymousTraversalSource.Traversal();
+            var g = AnonymousTraversalSource.Traversal().With(null);
 
             var bytecode = g.V().Out("created").Bytecode;
 
@@ -58,7 +59,7 @@ namespace Gremlin.Net.IntegrationTest.Process.Traversal.BytecodeGeneration
         [Fact]
         public void g_WithSackX1X_E_GroupCount_ByXweightX()
         {
-            var g = AnonymousTraversalSource.Traversal();
+            var g = AnonymousTraversalSource.Traversal().With(null);
 
             var bytecode = g.WithSack(1).E().GroupCount<double>().By("weight").Bytecode;
 
@@ -78,7 +79,7 @@ namespace Gremlin.Net.IntegrationTest.Process.Traversal.BytecodeGeneration
         [Fact]
         public void g_InjectX1_2_3X()
         {
-            var g = AnonymousTraversalSource.Traversal();
+            var g = AnonymousTraversalSource.Traversal().With(null);
 
             var bytecode = g.Inject(1, 2, 3).Bytecode;
 
@@ -94,6 +95,22 @@ namespace Gremlin.Net.IntegrationTest.Process.Traversal.BytecodeGeneration
 
             Assert.Empty(bytecode.SourceInstructions);
             Assert.Empty(bytecode.StepInstructions);
+        }
+
+        [Fact]
+        public void AnonymousTraversal_VXnullX()
+        {
+            var bytecode = __.V(null).Bytecode;
+            
+            Assert.Single(bytecode.StepInstructions);
+            Assert.Single(bytecode.StepInstructions[0].Arguments);
+            Assert.Null(bytecode.StepInstructions[0].Arguments[0]);
+        }
+        
+        [Fact]
+        public void AnonymousTraversal_OutXnullX()
+        {
+            Assert.Throws<ArgumentNullException>(() => __.Out(null!));
         }
     }
 }

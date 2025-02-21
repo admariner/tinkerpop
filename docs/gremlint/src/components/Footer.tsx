@@ -20,9 +20,9 @@
 import styled from 'styled-components';
 import CenteredContainer from './CenteredContainer';
 import { textColor } from '../styleVariables';
-import { packages } from '../../package-lock.json';
+import lockFile from '../../package-lock.json';
 
-const gremlintVersion = packages['node_modules/gremlint'].version;
+const gremlintVersion = lockFile.packages['node_modules/gremlint'].version;
 
 const FooterContent = styled.div`
   padding: 10px;
@@ -36,7 +36,7 @@ const Footer = () => (
   <CenteredContainer>
     <FooterContent>
       <p>Gremlint version: {gremlintVersion}</p>
-      <p>Copyright © 2015-2021 The Apache Software Foundation.</p>
+      <p>Copyright © 2015-2025 The Apache Software Foundation.</p>
     </FooterContent>
   </CenteredContainer>
 );

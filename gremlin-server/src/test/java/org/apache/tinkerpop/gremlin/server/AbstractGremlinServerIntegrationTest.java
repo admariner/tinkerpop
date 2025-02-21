@@ -18,9 +18,8 @@
  */
 package org.apache.tinkerpop.gremlin.server;
 
-import org.apache.tinkerpop.gremlin.server.channel.UnifiedChannelizer;
-import org.apache.tinkerpop.gremlin.server.channel.UnifiedChannelizerIntegrateTest;
-import org.apache.tinkerpop.gremlin.server.op.OpLoader;
+import org.apache.tinkerpop.gremlin.server.util.ServerGremlinExecutor;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.AbstractTinkerGraph;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -30,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.InputStream;
+import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assume.assumeThat;
@@ -102,10 +102,6 @@ public abstract class AbstractGremlinServerIntegrationTest {
         } else {
             final Settings oSettings = overrideSettings(settings);
 
-            if (shouldTestUnified()) {
-                oSettings.channelizer = UnifiedChannelizer.class.getName();
-            }
-
             ServerTestHelper.rewritePathsInGremlinServerSettings(oSettings);
             if (GREMLIN_SERVER_EPOLL) {
                 oSettings.useEpollEventLoop = true;
@@ -116,6 +112,10 @@ public abstract class AbstractGremlinServerIntegrationTest {
     }
 
     public void startServer() throws Exception {
+        startServerAsync().join();
+    }
+
+    public CompletableFuture<ServerGremlinExecutor> startServerAsync() throws Exception {
         final InputStream stream = getSettingsInputStream();
         final Settings settings = Settings.read(stream);
         overriddenSettings = overrideSettings(settings);
@@ -124,13 +124,9 @@ public abstract class AbstractGremlinServerIntegrationTest {
             overriddenSettings.useEpollEventLoop = true;
         }
 
-        if (shouldTestUnified()) {
-            overriddenSettings.channelizer = UnifiedChannelizer.class.getName();
-        }
-
         this.server = new GremlinServer(overriddenSettings);
 
-        server.start().join();
+        return server.start();
     }
 
     @After
@@ -140,17 +136,14 @@ public abstract class AbstractGremlinServerIntegrationTest {
     }
 
     public void stopServer() throws Exception {
+        // calling close() on TinkerGraph does not free resources quickly enough. adding a clear() call let's gc
+        // cleanup earlier
+        server.getServerGremlinExecutor().getGraphManager().getAsBindings().values().stream()
+                .filter(g -> g instanceof AbstractTinkerGraph).forEach(g -> ((AbstractTinkerGraph) g).clear());
+
         if (server != null) {
             server.stop().join();
         }
-        // reset the OpLoader processors so that they can get reconfigured on startup - Settings may have changed
-        // between tests
-        OpLoader.reset();
-    }
-
-    protected boolean isUsingUnifiedChannelizer() {
-        return server.getServerGremlinExecutor().
-                getSettings().channelizer.equals(UnifiedChannelizer.class.getName());
     }
 
     public static boolean deleteDirectory(final File directory) {
@@ -170,21 +163,8 @@ public abstract class AbstractGremlinServerIntegrationTest {
         return (directory.delete());
     }
 
-    protected static void assumeNeo4jIsPresent() {
-        boolean neo4jIncludedForTesting;
-        try {
-            Class.forName("org.neo4j.tinkerpop.api.impl.Neo4jGraphAPIImpl");
-            neo4jIncludedForTesting = true;
-        } catch (Throwable ex) {
-            neo4jIncludedForTesting = false;
-        }
-        assumeThat("Neo4j implementation was not included for testing - run with -DincludeNeo4j", neo4jIncludedForTesting, is(true));
-    }
-
-    private boolean shouldTestUnified() {
-        // ignore all tests in the UnifiedChannelizerIntegrateTest package as they are already rigged to test
-        // over the various channelizer implementations
-        return Boolean.parseBoolean(System.getProperty("testUnified", "false")) &&
-                !this.getClass().getPackage().equals(UnifiedChannelizerIntegrateTest.class.getPackage());
+    protected static void useTinkerTransactionGraph(final Settings settings) {
+        logger.info("Running transactional tests using TinkerTransactionGraph");
+        settings.graphs.put("graph", "conf/tinkertransactiongraph-empty.properties");
     }
 }

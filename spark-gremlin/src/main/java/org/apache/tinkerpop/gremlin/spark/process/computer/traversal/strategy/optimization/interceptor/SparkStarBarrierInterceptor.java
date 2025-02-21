@@ -42,10 +42,10 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.MinGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.SumGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ReducingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SubgraphStrategy;
+import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.ProductiveByStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.ComputerVerificationStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
-import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.spark.process.computer.SparkMemory;
 import org.apache.tinkerpop.gremlin.spark.process.computer.traversal.strategy.SparkVertexProgramInterceptor;
@@ -101,8 +101,11 @@ public final class SparkStarBarrierInterceptor implements SparkVertexProgramInte
             result = nextRDD.map(Traverser::bulk).fold(0L, (a, b) -> a + b);
         else if (endStep instanceof SumGlobalStep) {
             result = nextRDD.isEmpty() ? null : nextRDD
-                    .map(traverser -> NumberHelper.mul(traverser.bulk(), (Number) traverser.get()))
-                    .fold(0, NumberHelper::add);
+                    .map(traverser -> {
+                        final Number n = (Number) traverser.get();
+                        final Class<? extends Number> clazz = null == n ? Long.class : n.getClass();
+                        return NumberHelper.mul(n, NumberHelper.coerceTo(traverser.bulk(), clazz));
+                    }).fold(0, NumberHelper::add);
         } else if (endStep instanceof MeanGlobalStep) {
             result = nextRDD.isEmpty() ? null : nextRDD
                     .map(traverser -> new MeanGlobalStep.MeanNumber((Number) traverser.get(), traverser.bulk()))
@@ -163,7 +166,8 @@ public final class SparkStarBarrierInterceptor implements SparkVertexProgramInte
         final Step<?, ?> startStep = traversal.getStartStep();
         final Step<?, ?> endStep = traversal.getEndStep();
         // right now this is not supported because of how the SparkStarBarrierInterceptor mutates the traversal prior to local evaluation
-        if (traversal.getStrategies().getStrategy(SubgraphStrategy.class).isPresent())
+        if (traversal.getStrategies().getStrategy(SubgraphStrategy.class).isPresent() ||
+                traversal.getStrategies().getStrategy(ProductiveByStrategy.class).isPresent())
             return false;
         if (!startStep.getClass().equals(GraphStep.class) || ((GraphStep) startStep).returnsEdge())
             return false;

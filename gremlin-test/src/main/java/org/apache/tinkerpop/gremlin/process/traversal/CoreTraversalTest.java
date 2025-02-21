@@ -28,8 +28,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.BulkSet;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.VerificationException;
+import org.apache.tinkerpop.gremlin.process.traversal.util.DefaultTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
-import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
@@ -37,22 +37,20 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.apache.tinkerpop.gremlin.LoadGraphWith.GraphData.MODERN;
 import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.inject;
 import static org.apache.tinkerpop.gremlin.structure.Graph.Features.GraphFeatures.FEATURE_TRANSACTIONS;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.StringStartsWith.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -69,44 +67,6 @@ import static org.junit.Assert.fail;
 public class CoreTraversalTest extends AbstractGremlinProcessTest {
 
     @Test
-    @LoadGraphWith(MODERN)
-    @FeatureRequirement(featureClass = Graph.Features.VertexFeatures.class, feature = Graph.Features.VertexFeatures.FEATURE_ADD_VERTICES)
-    @FeatureRequirement(featureClass = Graph.Features.VertexFeatures.class, feature = Graph.Features.VertexFeatures.FEATURE_ADD_PROPERTY)
-    @FeatureRequirement(featureClass = Graph.Features.VertexFeatures.class, feature = Graph.Features.VertexFeatures.FEATURE_NULL_PROPERTY_VALUES)
-    public void g_addVXpersonX_propertyXname_nullX() {
-        final Traversal<Vertex, Vertex> traversal = g.addV("person").property("name", null);
-        printTraversalForm(traversal);
-        final Vertex nulled = traversal.next();
-        assertFalse(traversal.hasNext());
-        assertEquals("person", nulled.label());
-        assertNull(nulled.value("name"));
-        assertEquals(1, IteratorUtils.count(nulled.properties()));
-        assertEquals(7, IteratorUtils.count(g.V()));
-    }
-
-    @Test
-    @LoadGraphWith(MODERN)
-    @FeatureRequirement(featureClass = Graph.Features.EdgeFeatures.class, feature = Graph.Features.EdgeFeatures.FEATURE_ADD_EDGES)
-    @FeatureRequirement(featureClass = Graph.Features.EdgeFeatures.class, feature = Graph.Features.EdgeFeatures.FEATURE_NULL_PROPERTY_VALUES)
-    public void g_VX1X_asXaX_outXcreatedX_addEXcreatedByX_toXaX_propertyXweight_nullX() {
-        final Traversal<Vertex, Edge> traversal = g.V(convertToVertexId("marko")).as("a").out("created").addE("createdBy").to("a").property("weight", null);
-        printTraversalForm(traversal);
-        int count = 0;
-        while (traversal.hasNext()) {
-            final Edge edge = traversal.next();
-            assertEquals("createdBy", edge.label());
-            assertNull(g.E(edge).<Double>values("weight").next());
-            assertEquals(1, g.E(edge).properties().count().next().intValue());
-            count++;
-
-
-        }
-        assertEquals(1, count);
-        assertEquals(7, IteratorUtils.count(g.E()));
-        assertEquals(6, IteratorUtils.count(g.V()));
-    }
-
-    @Test
     @LoadGraphWith
     public void shouldNeverPropagateANoBulkTraverser() {
         try {
@@ -120,51 +80,32 @@ public class CoreTraversalTest extends AbstractGremlinProcessTest {
 
     @Test
     @LoadGraphWith(MODERN)
+    public void shouldCloneTraversalForReuse() {
+        final DefaultTraversal<Vertex, Long> t = (DefaultTraversal) g.V().count();
+        assertEquals(6, t.next().intValue());
+        assertThat(t.hasNext(), is(false));
+
+        final DefaultTraversal<Vertex, Long> t1 = t.clone();
+        assertEquals(6, t1.next().intValue());
+        assertThat(t1.hasNext(), is(false));
+
+        final DefaultTraversal<Vertex, Long> t2 = t.clone();
+        assertEquals(6, t2.next().intValue());
+        assertThat(t2.hasNext(), is(false));
+
+        final DefaultTraversal<Vertex, Long> t3 = t1.clone();
+        assertEquals(6, t3.next().intValue());
+        assertThat(t3.hasNext(), is(false));
+    }
+
+    @Test
+    @LoadGraphWith(MODERN)
     public void shouldFilterOnIterate() {
         final Traversal<Vertex,String> traversal = g.V().out().out().<String>values("name").aggregate("x").iterate();
         assertFalse(traversal.hasNext());
         assertEquals(2, traversal.asAdmin().getSideEffects().<BulkSet>get("x").size());
         assertTrue(traversal.asAdmin().getSideEffects().<BulkSet>get("x").contains("ripple"));
         assertTrue(traversal.asAdmin().getSideEffects().<BulkSet>get("x").contains("lop"));
-        assertEquals(Traversal.Symbols.none, traversal.asAdmin().getBytecode().getStepInstructions().get(traversal.asAdmin().getBytecode().getStepInstructions().size()-1).getOperator());
-    }
-
-    @Test
-    @LoadGraphWith(MODERN)
-    public void shouldLoadVerticesViaIds() {
-        final List<Vertex> vertices = g.V().toList();
-        final List<Object> ids = vertices.stream().map(Vertex::id).collect(Collectors.toList());
-        final List<Vertex> verticesReloaded = g.V(ids.toArray()).toList();
-        assertEquals(vertices.size(), verticesReloaded.size());
-        assertEquals(new HashSet<>(vertices), new HashSet<>(verticesReloaded));
-    }
-
-    @Test
-    @LoadGraphWith(MODERN)
-    public void shouldLoadEdgesViaIds() {
-        final List<Edge> edges = g.E().toList();
-        final List<Object> ids = edges.stream().map(Edge::id).collect(Collectors.toList());
-        final List<Edge> edgesReloaded = g.E(ids.toArray()).toList();
-        assertEquals(edges.size(), edgesReloaded.size());
-        assertEquals(new HashSet<>(edges), new HashSet<>(edgesReloaded));
-    }
-
-    @Test
-    @LoadGraphWith(MODERN)
-    public void shouldLoadVerticesViaVertices() {
-        final List<Vertex> vertices = g.V().toList();
-        final List<Vertex> verticesReloaded = g.V(vertices.toArray()).toList();
-        assertEquals(vertices.size(), verticesReloaded.size());
-        assertEquals(new HashSet<>(vertices), new HashSet<>(verticesReloaded));
-    }
-
-    @Test
-    @LoadGraphWith(MODERN)
-    public void shouldLoadEdgesViaEdges() {
-        final List<Edge> edges = g.E().toList();
-        final List<Edge> edgesReloaded = g.E(edges.toArray()).toList();
-        assertEquals(edges.size(), edgesReloaded.size());
-        assertEquals(new HashSet<>(edges), new HashSet<>(edgesReloaded));
     }
 
     @Test

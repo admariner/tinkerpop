@@ -33,6 +33,7 @@ import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Transaction;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.util.Attachable;
 import org.apache.tinkerpop.gremlin.structure.util.ElementHelper;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.util.iterator.AbortiveMultiIterator;
@@ -41,9 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -58,26 +57,6 @@ import java.util.stream.StreamSupport;
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_COMPUTER)
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_LIMITED_STANDARD)
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_LIMITED_COMPUTER)
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest$Traversals",
-        method = "g_V_matchXa_hasXname_GarciaX__a_0writtenBy_b__a_0sungBy_bX",
-        reason = "Hadoop-Gremlin is OLAP-oriented and for OLTP operations, linear-scan joins are required. This particular tests takes many minutes to execute.",
-        computers = {"ALL"})
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest$Traversals",
-        method = "g_V_matchXa_0sungBy_b__a_0sungBy_c__b_writtenBy_d__c_writtenBy_e__d_hasXname_George_HarisonX__e_hasXname_Bob_MarleyXX",
-        reason = "Hadoop-Gremlin is OLAP-oriented and for OLTP operations, linear-scan joins are required. This particular tests takes many minutes to execute.",
-        computers = {"ALL"})
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest$Traversals",
-        method = "g_V_matchXa_0sungBy_b__a_0writtenBy_c__b_writtenBy_d__c_sungBy_d__d_hasXname_GarciaXX",
-        reason = "Hadoop-Gremlin is OLAP-oriented and for OLTP operations, linear-scan joins are required. This particular tests takes many minutes to execute.",
-        computers = {"ALL"})
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest$Traversals",
-        method = "g_V_matchXa_0sungBy_b__a_0writtenBy_c__b_writtenBy_dX_whereXc_sungBy_dX_whereXd_hasXname_GarciaXX",
-        reason = "Hadoop-Gremlin is OLAP-oriented and for OLTP operations, linear-scan joins are required. This particular tests takes many minutes to execute.",
-        computers = {"ALL"})
 @Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.CountTest$Traversals",
         method = "g_V_both_both_count",
@@ -140,11 +119,6 @@ import java.util.stream.StreamSupport;
         method = "*",
         reason = "This test makes use of a sideEffect to enforce when a thread interruption is triggered and thus isn't applicable to HadoopGraph",
         computers = {"org.apache.tinkerpop.gremlin.spark.process.computer.SparkGraphComputer"})
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest$CountMatchTraversals",
-        method = "g_V_matchXa_followedBy_count_isXgtX10XX_b__a_0followedBy_count_isXgtX10XX_bX_count",
-        reason = "Hadoop-Gremlin is OLAP-oriented and for OLTP operations, linear-scan joins are required. This particular tests takes many minutes to execute.",
-        computers = {"ALL"})
 @Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.ReadTest$Traversals",
         method = "g_io_readXxmlX",
@@ -260,8 +234,12 @@ public final class HadoopGraph implements Graph {
             if (0 == vertexIds.length) {
                 return new HadoopVertexIterator(this);
             } else {
-                final Stream<Vertex> idsThatWereVertices = Stream.of(vertexIds).
-                        filter(id -> id instanceof Vertex).map(id -> (Vertex) id);
+                // attach vertices if detached instances are passed in otherwise they won't be reloaded and will
+                // basically be useless without properties
+                final Stream<Vertex> idsThatWereAttachedVertices = Stream.of(vertexIds).
+                        filter(id -> id instanceof Vertex).map(
+                                id -> id instanceof Attachable ? ((Attachable<Vertex>) id).attach(Attachable.Method.get(this)) : (Vertex) id);
+
                 final Stream<Vertex> verticesFromHadoopGraph = StreamSupport.stream(Spliterators.spliteratorUnknownSize(
                         IteratorUtils.filter(new HadoopVertexIterator(this),
                                 vertex -> ElementHelper.idExists(vertex.id(), vertexIds)), Spliterator.ORDERED), false);
@@ -269,7 +247,7 @@ public final class HadoopGraph implements Graph {
                 // if the vertexIds are all Vertex objects then abort the iteration of the full HadoopGraph as there
                 // is no need to refresh the data in this use case as other graphs might
                 final AbortiveMultiIterator<Vertex> iterator = new AbortiveMultiIterator<>();
-                iterator.addIterator(idsThatWereVertices.iterator());
+                iterator.addIterator(idsThatWereAttachedVertices.iterator());
                 iterator.addIterator(verticesFromHadoopGraph.iterator(), c -> c != vertexIds.length);
                 return iterator;
             }

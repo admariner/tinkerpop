@@ -21,7 +21,6 @@ package org.apache.tinkerpop.gremlin.server;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
@@ -34,17 +33,18 @@ import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import io.netty.util.internal.logging.Slf4JLoggerFactory;
 import org.apache.commons.lang3.SystemUtils;
-import org.apache.tinkerpop.gremlin.server.op.OpLoader;
 import org.apache.tinkerpop.gremlin.server.util.LifeCycleHook;
 import org.apache.tinkerpop.gremlin.server.util.MetricManager;
 import org.apache.tinkerpop.gremlin.server.util.ServerGremlinExecutor;
 import org.apache.tinkerpop.gremlin.server.util.ThreadFactoryUtil;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.util.Gremlin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -68,7 +68,11 @@ public class GremlinServer {
 
     private static final Logger logger = LoggerFactory.getLogger(GremlinServer.class);
     private final Settings settings;
-    private Channel ch;
+
+    /**
+     * The {@code ServerSocketChannel} established when binding the server to the host/port.
+     */
+    private Channel serverSocketChannel;
 
     private CompletableFuture<Void> serverStopped = null;
     private CompletableFuture<ServerGremlinExecutor> serverStarted = null;
@@ -123,9 +127,6 @@ public class GremlinServer {
         // use the ExecutorService returned from ServerGremlinExecutor as it might be initialized there
         serverGremlinExecutor = new ServerGremlinExecutor(settings, gremlinExecutorService, workerGroup);
         this.gremlinExecutorService = serverGremlinExecutor.getGremlinExecutorService();
-
-        // initialize the OpLoader with configurations being passed to each OpProcessor implementation loaded
-        OpLoader.init(settings);
     }
 
     /**
@@ -147,6 +148,11 @@ public class GremlinServer {
             b.childOption(ChannelOption.WRITE_BUFFER_WATER_MARK,
                     new WriteBufferWaterMark(settings.writeBufferLowWaterMark, settings.writeBufferHighWaterMark));
             b.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+            // Enable TCP Keep-Alive to detect if the remote peer is still reachable.
+            // Keep-Alive sends periodic probes to check if the remote peer is still active.
+            // If the remote peer is unreachable, the connection will be closed, preventing
+            // resource leaks and avoiding the maintenance of stale connections.
+            b.childOption(ChannelOption.SO_KEEPALIVE, true);
 
             // fire off any lifecycle scripts that were provided by the user. hooks get initialized during
             // ServerGremlinExecutor initialization
@@ -170,22 +176,19 @@ public class GremlinServer {
                 b.channel(NioServerSocketChannel.class);
             }
 
-            // bind to host/port and wait for channel to be ready
-            b.bind(settings.host, settings.port).addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(final ChannelFuture channelFuture) throws Exception {
-                    if (channelFuture.isSuccess()) {
-                        ch = channelFuture.channel();
+            // bind to host/port and wait for ServerSocketChannel to be ready
+            b.bind(settings.host, settings.port).addListener((ChannelFutureListener) channelFuture -> {
+                if (channelFuture.isSuccess()) {
+                    serverSocketChannel = channelFuture.channel();
 
-                        logger.info("Gremlin Server configured with worker thread pool of {}, gremlin pool of {} and boss thread pool of {}.",
-                                settings.threadPoolWorker, settings.gremlinPool, settings.threadPoolBoss);
-                        logger.info("Channel started at port {}.", settings.port);
+                    logger.info("Gremlin Server configured with worker thread pool of {}, gremlin pool of {} and boss thread pool of {}.",
+                            settings.threadPoolWorker, settings.gremlinPool, settings.threadPoolBoss);
+                    logger.info("Channel started at port {}.", settings.port);
 
-                        serverReadyFuture.complete(serverGremlinExecutor);
-                    } else {
-                        serverReadyFuture.completeExceptionally(new IOException(
-                                String.format("Could not bind to %s and %s - perhaps something else is bound to that address.", settings.host, settings.port)));
-                    }
+                    serverReadyFuture.complete(serverGremlinExecutor);
+                } else {
+                    serverReadyFuture.completeExceptionally(new IOException(
+                            String.format("Could not bind to %s and %s - perhaps something else is bound to that address.", settings.host, settings.port)));
                 }
             });
         } catch (Exception ex) {
@@ -234,22 +237,12 @@ public class GremlinServer {
         serverStopped = new CompletableFuture<>();
         final CountDownLatch servicesLeftToShutdown = new CountDownLatch(3);
 
-        // release resources in the OpProcessors (e.g. kill sessions)
-        OpLoader.getProcessors().entrySet().forEach(kv -> {
-            logger.info("Shutting down OpProcessor[{}]", kv.getKey());
-            try {
-                kv.getValue().close();
-            } catch (Exception ex) {
-                logger.warn("Shutdown will continue but, there was an error encountered while closing " + kv.getKey(), ex);
-            }
-        });
-
         // it's possible that a channel might not be initialized in the first place if bind() fails because
         // of port conflict.  in that case, there's no need to wait for the channel to close.
-        if (null == ch)
+        if (null == serverSocketChannel)
             servicesLeftToShutdown.countDown();
         else
-            ch.close().addListener(f -> servicesLeftToShutdown.countDown());
+            serverSocketChannel.close().addListener(f -> servicesLeftToShutdown.countDown());
 
         logger.info("Shutting down thread pools.");
 
@@ -300,15 +293,43 @@ public class GremlinServer {
                 logger.warn("Timeout waiting for boss/worker thread pools to shutdown - continuing with shutdown process.");
             }
 
+            // close TraversalSource and Graph instances - there aren't guarantees that closing Graph will close all
+            // spawned TraversalSource instances so both should be closed directly and independently.
             if (serverGremlinExecutor != null) {
-                serverGremlinExecutor.getGraphManager().getGraphNames().forEach(gName -> {
+                final Set<String> traversalSourceNames = serverGremlinExecutor.getGraphManager().getTraversalSourceNames();
+                traversalSourceNames.forEach(traversalSourceName -> {
+                    logger.debug("Closing GraphTraversalSource instance [{}]", traversalSourceName);
+                    try {
+                        serverGremlinExecutor.getGraphManager().getTraversalSource(traversalSourceName).close();
+                    } catch (Exception ex) {
+                        logger.warn(String.format("Exception while closing GraphTraversalSource instance [%s]", traversalSourceName), ex);
+                    } finally {
+                        logger.info("Closed GraphTraversalSource instance [{}]", traversalSourceName);
+                    }
+
+                    try {
+                        serverGremlinExecutor.getGraphManager().removeTraversalSource(traversalSourceName);
+                    } catch (Exception ex) {
+                        logger.warn(String.format("Exception while removing GraphTraversalSource instance [%s] from GraphManager", traversalSourceName), ex);
+                    }
+                });
+
+                final Set<String> graphNames = serverGremlinExecutor.getGraphManager().getGraphNames();
+                graphNames.forEach(gName -> {
                     logger.debug("Closing Graph instance [{}]", gName);
                     try {
-                        serverGremlinExecutor.getGraphManager().getGraph(gName).close();
+                        final Graph graph = serverGremlinExecutor.getGraphManager().getGraph(gName);
+                        graph.close();
                     } catch (Exception ex) {
                         logger.warn(String.format("Exception while closing Graph instance [%s]", gName), ex);
                     } finally {
                         logger.info("Closed Graph instance [{}]", gName);
+                    }
+
+                    try {
+                        serverGremlinExecutor.getGraphManager().removeGraph(gName);
+                    } catch (Exception ex) {
+                        logger.warn(String.format("Exception while removing Graph instance [%s] from GraphManager", gName), ex);
                     }
                 });
             }
@@ -369,7 +390,7 @@ public class GremlinServer {
         builder.append(Gremlin.version() + "\r\n");
         builder.append("         \\,,,/\r\n");
         builder.append("         (o o)\r\n");
-        builder.append("-----oOOo-(3)-oOOo-----\r\n");
+        builder.append("-----oOOo-(" + Gremlin.majorVersion() + ")-oOOo-----\r\n");
         return builder.toString();
     }
 

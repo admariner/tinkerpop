@@ -19,7 +19,7 @@
 
 __author__ = 'Marko A. Rodriguez (http://markorodriguez.com)'
 
-from gremlin_python.process.traversal import TraversalStrategy
+from .traversal import TraversalStrategy
 
 base_namespace = 'org.apache.tinkerpop.gremlin.process.traversal.strategy.'
 decoration_namespace = base_namespace + 'decoration.'
@@ -41,6 +41,7 @@ class ConnectiveStrategy(TraversalStrategy):
 class ElementIdStrategy(TraversalStrategy):
     def __init__(self):
         TraversalStrategy.__init__(self, fqcn=decoration_namespace + 'ElementIdStrategy')
+        self.configuration = {}
 
 
 # EventStrategy doesn't make sense outside JVM traversal machine
@@ -53,7 +54,7 @@ class HaltedTraverserStrategy(TraversalStrategy):
 
 
 class OptionsStrategy(TraversalStrategy):
-    def __init__(self, options=None):
+    def __init__(self, **options):
         TraversalStrategy.__init__(self, configuration=options, fqcn=decoration_namespace + 'OptionsStrategy')
 
 
@@ -78,7 +79,7 @@ class SeedStrategy(TraversalStrategy):
 
 class SubgraphStrategy(TraversalStrategy):
 
-    def __init__(self, vertices=None, edges=None, vertex_properties=None):
+    def __init__(self, vertices=None, edges=None, vertex_properties=None, check_adjacent_vertices=None):
         TraversalStrategy.__init__(self, fqcn=decoration_namespace + 'SubgraphStrategy')
         if vertices is not None:
             self.configuration["vertices"] = vertices
@@ -86,6 +87,8 @@ class SubgraphStrategy(TraversalStrategy):
             self.configuration["edges"] = edges
         if vertex_properties is not None:
             self.configuration["vertexProperties"] = vertex_properties
+        if check_adjacent_vertices is not None:
+            self.configuration["checkAdjacentVertices"] = check_adjacent_vertices
 
 
 class VertexProgramStrategy(TraversalStrategy):
@@ -119,6 +122,21 @@ class MatchAlgorithmStrategy(TraversalStrategy):
             self.configuration["matchAlgorithm"] = match_algorithm
 
 
+class ReferenceElementStrategy(TraversalStrategy):
+    def __init__(self, options=None):
+        TraversalStrategy.__init__(self, configuration=options, fqcn=decoration_namespace + 'ReferenceElementStrategy')
+
+
+class ComputerFinalizationStrategy(TraversalStrategy):
+    def __init__(self, options=None):
+        TraversalStrategy.__init__(self, configuration=options, fqcn=decoration_namespace + 'ComputerFinalizationStrategy')
+
+
+class ProfileStrategy(TraversalStrategy):
+    def __init__(self, options=None):
+        TraversalStrategy.__init__(self, configuration=options, fqcn=decoration_namespace + 'ProfileStrategy')
+
+
 ###########################
 # OPTIMIZATION STRATEGIES #
 ###########################
@@ -130,12 +148,12 @@ class AdjacentToIncidentStrategy(TraversalStrategy):
 
 class ByModulatorOptimizationStrategy(TraversalStrategy):
     def __init__(self):
-        TraversalStrategy.__init__(self, fqcn="org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.CountStrategy")
+        TraversalStrategy.__init__(self, fqcn="org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.ByModulatorOptimizationStrategy")
 
 
 class CountStrategy(TraversalStrategy):
     def __init__(self):
-        TraversalStrategy.__init__(self, fqcn="org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.ByModulatorOptimizationStrategy")
+        TraversalStrategy.__init__(self, fqcn="org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.CountStrategy")
 
 
 class FilterRankingStrategy(TraversalStrategy):
@@ -183,6 +201,11 @@ class PathRetractionStrategy(TraversalStrategy):
         TraversalStrategy.__init__(self, fqcn=optimization_namespace + 'PathRetractionStrategy')
 
 
+class ProductiveByStrategy(TraversalStrategy):
+    def __init__(self, productiveKeys=None):
+        TraversalStrategy.__init__(self, fqcn=optimization_namespace + 'ProductiveByStrategy')
+
+
 class CountStrategy(TraversalStrategy):
     def __init__(self):
         TraversalStrategy.__init__(self, fqcn=optimization_namespace + 'CountStrategy')
@@ -203,9 +226,18 @@ class EarlyLimitStrategy(TraversalStrategy):
     def __init__(self):
         TraversalStrategy.__init__(self, fqcn=optimization_namespace + 'EarlyLimitStrategy')
 
+
+class MessagePassingReductionStrategy(TraversalStrategy):
+    def __init__(self, options=None):
+        TraversalStrategy.__init__(self, configuration=options, fqcn=decoration_namespace + 'MessagePassingReductionStrategy')
+
 ###########################
 # VERIFICATION STRATEGIES #
 ###########################
+
+class ComputerVerificationStrategy(TraversalStrategy):
+    def __init__(self, options=None):
+        TraversalStrategy.__init__(self, configuration=options, fqcn=decoration_namespace + 'ComputerVerificationStrategy')
 
 
 class LambdaRestrictionStrategy(TraversalStrategy):
@@ -230,3 +262,13 @@ class ReservedKeysVerificationStrategy(TraversalStrategy):
         self.configuration["logWarning"] = log_warning
         self.configuration["throwException"] = throw_exception
         self.configuration["keys"] = keys
+
+
+class VertexProgramRestrictionStrategy(TraversalStrategy):
+    def __init__(self):
+        TraversalStrategy.__init__(self, fqcn=verification_namespace + 'VertexProgramRestrictionStrategy')
+
+
+class StandardVerificationStrategy(TraversalStrategy):
+    def __init__(self):
+        TraversalStrategy.__init__(self, fqcn=verification_namespace + 'StandardVerificationStrategy')

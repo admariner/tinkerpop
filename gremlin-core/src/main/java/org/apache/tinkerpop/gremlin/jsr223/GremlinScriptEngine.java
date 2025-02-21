@@ -18,10 +18,11 @@
  */
 package org.apache.tinkerpop.gremlin.jsr223;
 
-import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
+import org.apache.tinkerpop.gremlin.process.traversal.GremlinLang;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 
 import javax.script.Bindings;
+import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
@@ -36,23 +37,4 @@ public interface GremlinScriptEngine extends ScriptEngine {
 
     @Override
     public GremlinScriptEngineFactory getFactory();
-
-    /**
-     * Evaluates {@link Traversal} {@link Bytecode} against a traversal source in the global bindings of the
-     * {@code ScriptEngine}.
-     *
-     * @param bytecode of the traversal to execute
-     * @param traversalSource to execute the bytecode against which should be in the available bindings.
-     */
-    public default Traversal.Admin eval(final Bytecode bytecode, final String traversalSource) throws ScriptException {
-        final Bindings bindings = this.createBindings();
-        bindings.putAll(bytecode.getBindings());
-        return eval(bytecode, bindings, traversalSource);
-    }
-
-    /**
-     * Evaluates {@link Traversal} {@link Bytecode} with the specified {@code Bindings}. These {@code Bindings}
-     * supplied to this method will be merged with global engine bindings and override them where keys match.
-     */
-    public Traversal.Admin eval(final Bytecode bytecode, final Bindings bindings, final String traversalSource) throws ScriptException;
 }

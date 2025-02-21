@@ -22,35 +22,32 @@ import groovy.cli.picocli.CliBuilder
 import groovy.cli.picocli.OptionAccessor
 import jline.TerminalFactory
 import jline.console.history.FileHistory
-
-import org.apache.tinkerpop.gremlin.console.commands.BytecodeCommand
+import org.apache.groovy.groovysh.ExitNotification
+import org.apache.groovy.groovysh.Groovysh
+import org.apache.groovy.groovysh.InteractiveShellRunner
+import org.apache.groovy.groovysh.commands.SetCommand
+import org.apache.tinkerpop.gremlin.console.commands.ClsCommand
 import org.apache.tinkerpop.gremlin.console.commands.GremlinSetCommand
 import org.apache.tinkerpop.gremlin.console.commands.InstallCommand
 import org.apache.tinkerpop.gremlin.console.commands.PluginCommand
-import org.apache.tinkerpop.gremlin.console.commands.RemoteCommand
-import org.apache.tinkerpop.gremlin.console.commands.ClsCommand
-import org.apache.tinkerpop.gremlin.console.commands.SubmitCommand
 import org.apache.tinkerpop.gremlin.console.commands.UninstallCommand
 import org.apache.tinkerpop.gremlin.groovy.loaders.GremlinLoader
 import org.apache.tinkerpop.gremlin.jsr223.CoreGremlinPlugin
 import org.apache.tinkerpop.gremlin.jsr223.GremlinPlugin
 import org.apache.tinkerpop.gremlin.jsr223.ImportCustomizer
-import org.apache.tinkerpop.gremlin.jsr223.console.RemoteException
+import org.apache.tinkerpop.gremlin.process.traversal.Failure
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser
+import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalExplanation
 import org.apache.tinkerpop.gremlin.structure.Edge
 import org.apache.tinkerpop.gremlin.structure.T
 import org.apache.tinkerpop.gremlin.structure.Vertex
 import org.apache.tinkerpop.gremlin.util.Gremlin
 import org.apache.tinkerpop.gremlin.util.iterator.ArrayIterator
-import org.codehaus.groovy.tools.shell.ExitNotification
-import org.codehaus.groovy.tools.shell.Groovysh
 import org.codehaus.groovy.tools.shell.IO
-import org.codehaus.groovy.tools.shell.InteractiveShellRunner
-import org.codehaus.groovy.tools.shell.commands.SetCommand
 import org.fusesource.jansi.Ansi
 import sun.misc.Signal
 import sun.misc.SignalHandler
-
 /**
  * @author Stephen Mallette (http://stephen.genoprime.com)
  */
@@ -77,7 +74,7 @@ class Console {
             io.out.println()
             io.out.println("         " + Colorizer.render(Preferences.gremlinColor, "\\,,,/"))
             io.out.println("         " + Colorizer.render(Preferences.gremlinColor, "(o o)"))
-            io.out.println("" + Colorizer.render(Preferences.gremlinColor, "-----oOOo-(3)-oOOo-----"))
+            io.out.println("" + Colorizer.render(Preferences.gremlinColor, "-----oOOo-(" + Gremlin.majorVersion() + ")-oOOo-----"))
         }
 
         final Mediator mediator = new Mediator(this)
@@ -105,19 +102,18 @@ class Console {
         groovy.register(new UninstallCommand(groovy, mediator))
         groovy.register(new InstallCommand(groovy, mediator))
         groovy.register(new PluginCommand(groovy, mediator))
-        groovy.register(new RemoteCommand(groovy, mediator))
-        groovy.register(new SubmitCommand(groovy, mediator))
-        groovy.register(new BytecodeCommand(groovy, mediator))
         groovy.register(new ClsCommand(groovy, mediator))
 
         // hide output temporarily while imports execute
         showShellEvaluationOutput(false)
 
+        org.codehaus.groovy.control.customizers.ImportCustomizer ic = new org.codehaus.groovy.control.customizers.ImportCustomizer()
         def imports = (ImportCustomizer) CoreGremlinPlugin.instance().getCustomizers("gremlin-groovy").get()[0]
-        imports.getClassPackages().collect { Mediator.IMPORT_SPACE + it.getName() + Mediator.IMPORT_WILDCARD }.each { groovy.execute(it) }
-        imports.getMethodClasses().collect { Mediator.IMPORT_STATIC_SPACE + it.getCanonicalName() + Mediator.IMPORT_WILDCARD}.each{ groovy.execute(it) }
-        imports.getEnumClasses().collect { Mediator.IMPORT_STATIC_SPACE + it.getCanonicalName() + Mediator.IMPORT_WILDCARD}.each{ groovy.execute(it) }
-        imports.getFieldClasses().collect { Mediator.IMPORT_STATIC_SPACE + it.getCanonicalName() + Mediator.IMPORT_WILDCARD}.each{ groovy.execute(it) }
+        ic.addStarImports(imports.getClassPackages().collect() { it.getName() }.toArray(new String[0]))
+        ic.addStaticStars(imports.getMethodClasses().collect() { it.getCanonicalName() }.toArray(new String[0]))
+        ic.addStaticStars(imports.getEnumClasses().collect() { it.getCanonicalName() }.toArray(new String[0]))
+        ic.addStaticStars(imports.getFieldClasses().collect() { it.getCanonicalName() }.toArray(new String[0]))
+        groovy.getCompilerConfiguration().addCompilationCustomizers(ic)
 
         final InteractiveShellRunner runner = new InteractiveShellRunner(groovy, handlePrompt)
         runner.reader.setHandleUserInterrupt(false)
@@ -140,16 +136,22 @@ class Console {
                 def pluggedIn = new PluggedIn((GremlinPlugin) plugin, groovy, io, false)
 
                 mediator.availablePlugins.put(plugin.class.name, pluggedIn)
+                pluggedIn.activate()
             }
         }
 
         // if there are active plugins then initialize them in the order that they are listed
         activePlugins.each { pluginName ->
             def pluggedIn = mediator.availablePlugins[pluginName]
-            pluggedIn.activate()
 
-            if (!io.quiet)
-                io.out.println(Colorizer.render(Preferences.infoColor, "plugin activated: " + pluggedIn.getPlugin().getName()))
+            if (pluggedIn != null) {
+                pluggedIn.activate()
+
+                if (!io.quiet)
+                    io.out.println(Colorizer.render(Preferences.infoColor, "plugin activated: " + pluggedIn.getPlugin().getName()))
+            } else if (!io.quiet) {
+                    io.out.println(Colorizer.render(Preferences.infoColor, "invalid plugin: " + pluginName))
+            }
         }
 
         // remove any "uninstalled" plugins from plugin state as it means they were installed, activated, but not
@@ -346,47 +348,49 @@ class Console {
         if (err instanceof Throwable) {
             try {
                 final Throwable e = (Throwable) err
-                String message = e.getMessage()
-                if (null != message) {
-                    message = message.replace("startup failed:", "")
-                    io.err.println(Colorizer.render(Preferences.errorColor, message.trim()))
+
+                // special rendering for Failure
+                if ((err instanceof Failure)) {
+                    def fail = (Failure) err
+                    io.err.println(Colorizer.render(Preferences.errorColor, fail.format()))
                 } else {
-                    io.err.println(Colorizer.render(Preferences.errorColor,e))
-                }
+                    String message = e.getMessage()
+                    if (null != message) {
+                        message = message.replace("startup failed:", "")
+                        io.err.println(Colorizer.render(Preferences.errorColor, message.trim()))
+                    } else {
+                        io.err.println(Colorizer.render(Preferences.errorColor, e))
+                    }
 
-                // provide a hint in the case of a stackoverflow as it can be common when running large Gremlin
-                // scripts and it isn't immediately apparent what the error might mean in this context especially
-                // if the user isn't familiar with the JVM. it really can only be a hint since we can't be completely
-                // sure it arose as a result of a long Gremlin traversal.
-                if (err instanceof StackOverflowError) {
-                    io.err.println(Colorizer.render(Preferences.errorColor,
-                            "A StackOverflowError can indicate that the Gremlin traversal being executed is too long. If " +
-                                    "you have a single Gremlin statement that is \"long\", you may break it up into " +
-                                    "multiple separate commands, re-write the traversal to operate on a stream of " +
-                                    "input via inject() rather than literals, or attempt to increase the -Xss setting" +
-                                    "of the Gremlin Console by modifying gremlin.sh."));
-                }
+                    // provide a hint in the case of a stackoverflow as it can be common when running large Gremlin
+                    // scripts and it isn't immediately apparent what the error might mean in this context especially
+                    // if the user isn't familiar with the JVM. it really can only be a hint since we can't be completely
+                    // sure it arose as a result of a long Gremlin traversal.
+                    if (err instanceof StackOverflowError) {
+                        io.err.println(Colorizer.render(Preferences.errorColor,
+                                "A StackOverflowError can indicate that the Gremlin traversal being executed is too long. If " +
+                                        "you have a single Gremlin statement that is \"long\", you may break it up into " +
+                                        "multiple separate commands, re-write the traversal to operate on a stream of " +
+                                        "input via inject() rather than literals, or attempt to increase the -Xss setting" +
+                                        "of the Gremlin Console by modifying gremlin.sh."));
+                    }
 
-                if (interactive) {
-                    io.err.println(Colorizer.render(Preferences.infoColor,"Type ':help' or ':h' for help."))
-                    io.err.print(Colorizer.render(Preferences.errorColor, "Display stack trace? [yN]"))
-                    io.err.flush()
-                    String line = new BufferedReader(io.in).readLine()
-                    if (null == line)
-                        line = ""
-                    io.err.print(line.trim())
-                    io.err.println()
-                    if (line.trim().equals("y") || line.trim().equals("Y")) {
-                        if (err instanceof RemoteException && err.remoteStackTrace.isPresent()) {
-                            io.err.print(err.remoteStackTrace.get())
-                            io.err.flush()
-                        } else {
+                    if (interactive) {
+                        io.err.println(Colorizer.render(Preferences.infoColor, "Type ':help' or ':h' for help."))
+                        io.err.print(Colorizer.render(Preferences.errorColor, "Display stack trace? [yN]"))
+                        io.err.flush()
+                        String line = new BufferedReader(io.in).readLine()
+                        if (null == line)
+                            line = ""
+                        io.err.print(line.trim())
+                        io.err.println()
+                        if (line.trim().equals("y") || line.trim().equals("Y")) {
                             e.printStackTrace(io.err)
                         }
+                    } else {
+                        e.printStackTrace(io.err)
+                        System.exit(1)
                     }
-                } else {
-                    e.printStackTrace(io.err)
-                    System.exit(1)
                 }
             } catch (Exception ignored) {
                 io.err.println(Colorizer.render(Preferences.errorColor, "An undefined error has occurred: " + err))
@@ -400,6 +404,44 @@ class Console {
         groovy.buffers.current().clear()
 
         return null
+    }
+
+    private def writeTraverserToErrorLines(Traverser t, List errorLines) {
+        // every traverser has an object so toString() that. pad with spaces to cover "side-effects" width
+        errorLines << "Traverser> $t"
+
+        def optGenerator = t.asAdmin().generator
+        if (optGenerator.isPresent()) {
+            def width = "Traverser".length()
+            def generator = optGenerator.get()
+            if (generator.providedRequirements.contains(TraverserRequirement.BULK)) {
+                errorLines << "  Bulk".padRight(width) + "> " + t.bulk()
+            }
+
+            if (generator.providedRequirements.contains(TraverserRequirement.SACK)) {
+                errorLines << "  Sack".padRight(width) + "> " + t.sack()
+            }
+
+            if (generator.providedRequirements.contains(TraverserRequirement.PATH)) {
+                errorLines << "  Path".padRight(width) + "> " + t.path()
+            }
+
+            if (generator.providedRequirements.contains(TraverserRequirement.SINGLE_LOOP) ||
+                    generator.providedRequirements.contains(TraverserRequirement.NESTED_LOOP)) {
+                // flatten loops/names if present
+                def loopNames = t.asAdmin().loopNames
+                def loopsLine = loopNames.isEmpty() ? t.loops() : loopNames.collect { [(it): t.loops(it)]}
+                errorLines << "  Loops".padRight(width) + "> " + loopsLine
+            }
+
+            if (generator.providedRequirements.contains(TraverserRequirement.SIDE_EFFECTS)) {
+                // convert side-effects to a map
+                def sideEffects = t.asAdmin().sideEffects
+                def keys = sideEffects.keys()
+                errorLines << "  S/E".padRight(width) + "> " + keys.collectEntries { [(it): sideEffects.get(it)]}
+            }
+
+        }
     }
 
     private static String buildResultPrompt() {

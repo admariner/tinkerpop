@@ -17,16 +17,13 @@
 # under the License.
 #
 import abc
-import six
 
-from gremlin_python.driver import request
 from gremlin_python.process import traversal
 
-__author__ = 'Marko A. Rodriguez (http://markorodriguez.com)'
+__author__ = 'Marko A. Rodriguez (http://markorodriguez.com), Lyndon Bauto (lyndonb@bitquilltech.com)'
 
 
-@six.add_metaclass(abc.ABCMeta)
-class RemoteConnection(object):
+class RemoteConnection(object, metaclass=abc.ABCMeta):
     def __init__(self, url, traversal_source):
         self._url = url
         self._traversal_source = traversal_source
@@ -40,8 +37,17 @@ class RemoteConnection(object):
         return self._traversal_source
 
     @abc.abstractmethod
-    def submit(self, bytecode):
+    def submit(self, gremlin_lang):
         pass
+
+    def is_closed(self):
+        raise Exception('is_closed() must be implemented')
+
+    def commit(self):
+        raise Exception('commit() must be implemented')
+
+    def rollback(self):
+        raise Exception('rollback() must be implemented')
 
     def __repr__(self):
         return "remoteconnection[" + self._url + "," + self._traversal_source + "]"
@@ -55,16 +61,18 @@ class RemoteTraversal(traversal.Traversal):
 
 class RemoteStrategy(traversal.TraversalStrategy):
     def __init__(self, remote_connection):
-        traversal.TraversalStrategy.__init__(self)
+        # Gave this a fqcn that has a local "py:" prefix since this strategy isn't sent as bytecode to the server.
+        # this is a sort of local-only strategy that actually executes client side. not sure if this prefix is the
+        # right way to name this or not, but it should have a name to identify it.
+        traversal.TraversalStrategy.__init__(self, fqcn="py:RemoteStrategy")
         self.remote_connection = remote_connection
 
     def apply(self, traversal):
         if traversal.traversers is None:
-            remote_traversal = self.remote_connection.submit(traversal.bytecode)
+            remote_traversal = self.remote_connection.submit(traversal.gremlin_lang)
             traversal.remote_results = remote_traversal
             traversal.traversers = remote_traversal.traversers
 
     def apply_async(self, traversal):
         if traversal.traversers is None:
-            traversal.remote_results = self.remote_connection.submitAsync(
-                traversal.bytecode)
+            traversal.remote_results = self.remote_connection.submit_async(traversal.gremlin_lang)

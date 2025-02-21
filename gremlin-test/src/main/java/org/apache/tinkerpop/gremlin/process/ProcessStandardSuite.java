@@ -23,6 +23,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.CoreTraversalTest;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalEngine;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalInterruptionTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.ComplexTest;
+import org.apache.tinkerpop.gremlin.process.traversal.step.OrderabilityTest;
+import org.apache.tinkerpop.gremlin.process.traversal.step.TernaryBooleanLogicsTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.BranchTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.ChooseTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.LocalTest;
@@ -59,6 +61,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.MatchTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MathTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MaxTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MeanTest;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeEdgeTest;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeVertexTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.MinTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.OrderTest;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PathTest;
@@ -88,7 +92,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventS
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.PartitionStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SeedStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.SubgraphStrategyProcessTest;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.TranslationStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.EarlyLimitStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.optimization.IncidentToAdjacentStrategyProcessTest;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.verification.ReadOnlyStrategyProcessTest;
@@ -154,6 +157,8 @@ public class ProcessStandardSuite extends AbstractGremlinSuite {
             MathTest.Traversals.class,
             MaxTest.Traversals.class,
             MeanTest.Traversals.class,
+            MergeEdgeTest.Traversals.class,
+            MergeVertexTest.Traversals.class,
             MinTest.Traversals.class,
             SumTest.Traversals.class,
             OrderTest.Traversals.class,
@@ -186,9 +191,6 @@ public class ProcessStandardSuite extends AbstractGremlinSuite {
             CoreTraversalTest.class,
             TraversalInterruptionTest.class,
 
-            // creations
-            TranslationStrategyProcessTest.class,
-
             // decorations
             ElementIdStrategyProcessTest.class,
             EventStrategyProcessTest.class,
@@ -199,7 +201,11 @@ public class ProcessStandardSuite extends AbstractGremlinSuite {
 
             // optimizations
             IncidentToAdjacentStrategyProcessTest.class,
-            EarlyLimitStrategyProcessTest.class
+            EarlyLimitStrategyProcessTest.class,
+
+            // semantics
+            OrderabilityTest.Traversals.class,
+            TernaryBooleanLogicsTest.class,
     };
 
     /**

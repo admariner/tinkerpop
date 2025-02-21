@@ -21,14 +21,385 @@ image::https://raw.githubusercontent.com/apache/tinkerpop/master/docs/static/ima
 
 *The Sleeping Gremlin: No. 18 Entr'acte Symphonique*
 
+== TinkerPop 3.5.8
+*Release Date: November 20, 2023*
+
+Please see the link:https://github.com/apache/tinkerpop/blob/3.5.8/CHANGELOG.asciidoc#release-3-5-8[changelog] for a
+complete list of all the modifications that are part of this release.
+
+== TinkerPop 3.5.7
+*Release Date: July 31, 2023*
+
+Please see the link:https://github.com/apache/tinkerpop/blob/3.5.7/CHANGELOG.asciidoc#release-3-5-7[changelog] for a
+complete list of all the modifications that are part of this release.
+
+=== Upgrading for Users
+
+==== Runtime Version Upgrades
+
+`gremlin-javascript` and `gremlint` have upgraded from Node 10 to Node 16 as Node 10 has passed end of life.
+`gremlin-go` has upgraded from Go 1.17 to Go 1.20 as Go 1.17 has passed end of life.
+
+==== GraphSON max token lengths
+
+Introduced max number length (10000 chars), string length (20 000 000 chars), and nesting depth (1000)
+constraints for GraphSON deserialization due to security vulnerabilities with earlier versions of Jackson Databind.
+New constraints are not expected to impact most users but can be overriden via GraphSONMapper.Builder or through serializer configuration.
+Example:
+
+[source,yaml]
+----
+serializers:
+  - { className: org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0,
+      config: {
+        maxNumberLength: 500,
+        maxStringLength: 500,
+        maxNestingDepth: 500
+      }
+  }
+----
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2948[TINKERPOP-2948]
+
+==== Deprecation of Neo4j-Gremlin
+
+Neo4j-Gremlin has been deprecated due to incompatibility with current versions of Neo4j.
+
+See: link:https://tinkerpop.apache.org/docs/3.5.7/reference/#neo4j-gremlin[reference docs] and link:https://issues.apache.org/jira/browse/TINKERPOP-2977[TINKERPOP-2977]
+
+== TinkerPop 3.5.6
+
+*Release Date: May 1, 2023*
+
+Please see the link:https://github.com/apache/tinkerpop/blob/3.5.6/CHANGELOG.asciidoc#release-3-5-6[changelog] for a
+complete list of all the modifications that are part of this release.
+
+=== Upgrading for Users
+
+==== Deprecation Warning for Node 10 and Go 1.17
+
+Release 3.5.6 will be the last version of 3.5.x to use Node 10 for `gremlin-javascript` and Go 1.17 for `gremlin-go` as
+both of these runtimes are no longer supported. The following release (3.5.7) will likely contain Node 16 to align with
+3.6.x and `gremlin-go` will use the latest available version of Go.
+
+==== ARM64 Support for Gremlin Server Docker Image
+
+Gremlin Server Docker image now supports both AMD64 and ARM64. Multi-architecture image can now be found on
+link:https://hub.docker.com/r/tinkerpop/gremlin-server/tags[Docker Hub].
+
+see: link:https://issues.apache.org/jira/browse/TINKERPOP-2852[TINKERPOP-2852]
+
+==== Performance Improvements
+There are various performance improvements included in this release:
+
+* Gremlin Console now uses `ImportCustomizer` to add imports, reducing the time spent resolving imports. This especially
+reduces the overhead for executing many simple lines of code. Processing for documentation (which runs thousands of
+simple lines) was reduced from 90 minutes to 25 minutes. Users should notice performance improvements when using the Gremlin Console.
+* In some instances, a graph may contain elements whose Ids are sequentially increasing integers. When using the `path()`
+step with a `CollectingBarrierStep` in these graphs, one may observe a huge increase in processing time because of an
+inefficient hash algorithm. This hash algorithm has been updated and tests have shown a 40x improvement in these
+`CollectingBarrierStep` queries involving `path()`.
+* There is an important performance improvement to `TraversalStrategy` application which removes some unnecessary recursion
+when evaluating the Gremlin syntax tree and should improve traversal compilation times, particularly on traversals with
+many children. Tests have shown a 10x improvement in compilation time.
+* `FilterRankingStrategy` saw a fairly specific performance improvement that should be particularly noticeable for
+traversal that have many children and some depth to their syntax tree. A particularly complex traversal that was used in
+testing this behavior improved its compilation time from 1 minute 48 seconds to just a few milliseconds.
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2526[TINKERPOP-2526],
+link:https://issues.apache.org/jira/browse/TINKERPOP-2899[TINKERPOP-2899],
+link:https://issues.apache.org/jira/browse/TINKERPOP-2855[TINKERPOP-2855],
+link:https://issues.apache.org/jira/browse/TINKERPOP-2919[TINKERPOP-2919]
+
+=== Upgrading for Providers
+
+==== Graph System Providers
+
+===== TraversalStrategy Expectations
+
+Given some important performance improvements in this version, providers may need to make alterations to their
+`TraversalStrategy` implementations as certain assumptions about the data available to a strategy may have changed.
+If a `TraversalStrategy` implementation requires access to the `Graph` implementation, side-effects, and similar data
+stored on a `Traversal`, it is best to get that information from the root of the traversal hierarchy rather than from
+the current traversal that the strategy is executing on as the strategy application process no longer take the
+expensive step to propagate that data throughout the traversal in between each strategy application. Use the
+`TraversalHelper.getRootTraversal()` helper function to get to the root traversal. Note also that
+`Traversal.getGraph()` will traverse through the parent traversals now when trying to find a `Graph`.
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2855[TINKERPOP-2855],
+link:https://issues.apache.org/jira/browse/TINKERPOP-2888[TINKERPOP-2888]
+
+===== Local steps should handle non-Iterables
+
+`index` steps and local steps `count`, `dedup`, `max`, `mean`, `min`, `order`, `range`, `sample`, `sum`, `tail` should
+work correctly with not only `Iterable` input, but also with arrays and single values.
+
+Examples of queries that should be supported:
+
+[source,groovy]
+----
+g.inject(1).max(local)
+----
+
+[source,java]
+----
+g.inject(new Integer[] {1,2},3).max(Scope.local).toList()
+----
+
+== TinkerPop 3.5.5
+
+*Release Date: January 16, 2023*
+
+Please see the link:https://github.com/apache/tinkerpop/blob/3.5.5/CHANGELOG.asciidoc#release-3-5-5[changelog] for a
+complete list of all the modifications that are part of this release.
+
+=== Upgrading for Users
+
+==== Gremlin.NET: Add logging
+
+The Gremlin.NET driver can now be configured for logging to get more insights into its internal state, like when
+a connection was closed and will therefore be replaced. It uses `Microsoft.Extensions.Logging` for this so all kinds
+of different .NET logging implementations can be used.
+
+The following example shows how to provide a `LoggerFactory` that is configured to log to the console to
+`GremlinClient`:
+
+[source,csharp]
+----
+var loggerFactory = LoggerFactory.Create(builder =>
+{
+    builder.AddConsole();
+});
+var client = new GremlinClient(new GremlinServer("localhost", 8182), loggerFactory: loggerFactory);
+----
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2471[TINKERPOP-2471]
+
+==== gremlin-driver Host Availability
+
+The Java drivers approach to determine the health of the host to which it is connected is important to how it behaves.
+The driver has generally taken a pessimistic approach to make this determination, where a failure to borrow a
+connection from the pool would constitute enough evidence to mark the host as dead. Unfortunately a failure to borrow
+from the pool is not the best indicator for a dead host. Intermittent network failure, an overly busy client, or other
+temporary issues could have been at play while the server was perfectly available.
+
+The consequences for marking a host dead are fairly severe as the connection pool is shutdown. While it is shutdown
+in an orderly fashion so as to allow for existing requests to complete if at all possible, it immediately blocks new
+requests producing an immediate `NoHostAvailableException` (assuming there are actually no other hosts to route
+requests to). There is then some delay to reconnect to the server and re-establish each of the connections in the pool,
+which might take some time especially if there was a large pool. If an application were sending hundreds of requests
+a second, it would quickly equate to hundreds of exceptions a second, filling logs quickly and making it hard to
+decipher the original root cause from that initial inability to simply borrow a connection.
+
+For 3.5.5, the driver has dropped some of its pessimistic ways and has taken a more optimistic posture when it comes
+to considering host availability. When the driver now has a problem borrowing a connection from the pool, it does not
+assume the worst of a failed host. It instead checks if the other connections in the pool are still alive. If at least
+one is alive it assumes the host is still available and the user simply gets a `TimeoutException` for waiting beyond
+the `maxWaitForConnection` setting. In the event that there are no connections deemed alive, the driver will try to
+issue an immediate reconnect to determine host health. If the reconnect succeeds then the host remains in an available
+state for future requests and if it fails it is finally marked as dead and thus unavailable.
+
+If a host is marked unavailable, the driver, like before, will try to route requests to other configured hosts that
+are healthy. If there are no such other hosts and all are unhealthy, the driver will now make an immediate attempt to
+route the request to a random unavailable host on the chance it will come back online and the connection pool thus
+re-established. So, rather than a `NoHostAvailableException` flood, the user would instead see a `TimeoutException`
+per request made.
+
+Since the driver was already throwing `NoHostAvailableException` and `TimeoutException`, there shouldn't be too
+many code changes required on upgrade to this version. The main difference to consider is that
+`NoHostAvailableException` should appear less often, so any code that mitigated against a flood of these exceptions
+might not be necessary anymore. One should also consider that if code was relying on the asynchronous
+properties that `Client.submitAsync()` implies in its name, that code may now see more blocking behavior than
+before. In doing this refactoring, it was noted that the connection borrowing behavior has never behaved in a truly
+asynchronous manner and only the fast `NoHostAvailableException` aspect of that method behavior really contributed to
+an asynchronous looking call for failed connection borrowing. With the fast `NoHostAvailableException` gone, it may be
+more likely now to note blocking behavior when a connection cannot be obtained.
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2813[TINKERPOP-2813]
+
+==== Added User Agent to Gremlin drivers
+
+Previously, a server does not distinguish amongst the different types of clients connecting to it. We have now added
+user agent to web socket handshake in all the drivers, each with their own configuration to enable or disable user agent.
+User agent is enabled by default for all drivers.
+
+* Java driver can be controlled by the `enableUserAgentOnConnect` configuration.
+* .Net driver can be controlled by the `EnableUserAgentOnConnect` in `ConnectionPoolSettings`.
+* Go driver can be controlled by the `EnableUserAgentOnConnect` setting.
+* Python driver can be controlled by the `enable_user_agent_on_connect` setting.
+* JavaScript driver can be controlled by the `enableUserAgentOnConnect` option.
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2480[TINKERPOP-2480]
+
+==== Update to SSL Handshake Timeout Configuration
+
+Previously, the java driver relies on the default 10 second SSL handshake timeout defined by Netty. We have removed
+the default SSL handshake timeout. The SSL handshake timeout will instead be capped by setting `connectionSetupTimeoutMillis`.
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2814[TINKERPOP-2814]
+
+== TinkerPop 3.5.4
+
+*Release Date: July 18, 2022*
+
+Please see the link:https://github.com/apache/tinkerpop/blob/3.5.4/CHANGELOG.asciidoc#release-3-5-4[changelog] for a
+complete list of all the modifications that are part of this release.
+
+=== Upgrading for Users
+
+==== SparkIOUtil utility
+
+A utility class `SparkIOUtil` is introduces, which allows users to load graph into Spark RDD via
+`loadVertices(org.apache.commons.configuration2.Configuration, JavaSparkContext)` method.
+
+==== Gremlin-Go
+
+After introducing a number of release candidates over the past several months, the official release of Gremlin-Go is now
+available starting at 3.5.4. There are a few simple prerequisites required to get started:
+
+* A Golang version of `1.20` or greater. Please see link:https://go.dev/dl/[Go Downloads] for more details on installing Golang.
+* A basic understanding of link:https://go.dev/blog/using-go-modules[Go Modules].
+* A project set up using Go Modules where `gremlin-go` will be used as a dependency.
+
+In the root directory of your project, containing the `go.mod` file, run the following command:
+
+`go get github.com/apache/tinkerpop/gremlin-go/v3@v3.5.4`
+
+Afterwards, we can quickly get started with writing Gremlin in Go:
+
+[source,go]
+----
+package main
+
+import (
+    "fmt"
+    "github.com/apache/tinkerpop/gremlin-go/v3/driver"
+)
+
+func main() {
+    // Creating the connection to the server
+    driverRemoteConnection, err := gremlingo.NewDriverRemoteConnection("ws://localhost:8182/gremlin",
+        func(settings *gremlingo.DriverRemoteConnectionSettings) {
+            // Configure optional settings
+            settings.LogVerbosity = gremlingo.Info
+            settings.InitialConcurrentConnections = 2
+        }
+    )
+    // Handle error
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    // Cleanup
+    defer driverRemoteConnection.Close()
+
+    // Creating graph traversal
+    g := gremlingo.Traversal_().WithRemote(driverRemoteConnection)
+
+    // Perform traversal
+    result, err := g.V().Count().ToList()
+    if err != nil {
+    fmt.Println(err)
+        return
+    }
+    fmt.Println(result[0].GetString())
+}
+----
+
+For full documentation on the available API to give Gremlin Go a try, click link:https://pkg.go.dev/github.com/apache/tinkerpop/gremlin-go/v3@v3.5.4/driver[here].
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2692[TINKERPOP-2692]
+
+==== GraphBinary support for gremlin-javascript
+
+Gremlin JavaScript now also supports GraphBinary. GraphSON3 still remains the default serialization format.
+
+To enable GraphBinary support, set the mime type in the connection options.
+
+[source,javascript]
+----
+const options = { mimeType: 'application/vnd.graphbinary-v1.0' }
+const g = traversal().withRemote(new DriverRemoteConnection('ws://localhost:8182/gremlin', options));
+----
+
+==== Deprecated connectOnStartup option in gremlin-javascript
+
+Deprecated and removed functionality of the `connectOnStartup` option for Gremlin Javascript to resolve potential
+`unhandledRejection` and race conditions. Setting `connectOnStartup` to `true` will only trigger a console warning.
+
+New DriverRemoteConnection objects no longer initiate connection by default at startup. Call `open()` explicitly if one
+wishes to connect on startup. For example:
+
+[source,javascript]
+----
+const drc = new DriverRemoteConnection(url);
+drc.open().catch(err => {
+   // Handle error upon open.
+})
+----
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2708[TINKERPOP-2708]
+
+== TinkerPop 3.5.3
+
+*Release Date: April 4, 2022*
+
+Please see the link:https://github.com/apache/tinkerpop/blob/3.5.3/CHANGELOG.asciidoc#release-3-5-3[changelog] for a
+complete list of all the modifications that are part of this release.
+
+=== Upgrading for Users
+
+==== .NET WebSocket Compression Support
+
+.NET 6 added support for WebSocket compression. This is now also enabled by default in Gremlin.NET.
+
+It should be noted however that compression might make an application susceptible to attacks like CRIME/BREACH.
+Compression should therefore be turned off if the application sends sensitive data to the server as well as data that
+could potentially be controlled by an untrusted user. Compression can be disabled via the `disableCompression`
+parameter on the `GremlinClient` constructor.
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2682[TINKERPOP-2682]
+
+==== .NET: Translator to Groovy
+
+A `Translator` can translate a Gremlin traversal from one programming language to another. Gremlin.NET now comes with
+a `GroovyTranslator` which translates a Gremlin.NET traversal into a string that contains a Gremlin-Groovy traversal:
+
+[source,csharp]
+----
+var g = ...;
+var t = g.V().Has("person", "name", "marko").Where(In("knows")).Values<int>("age");
+
+// Groovy
+var translator = GroovyTranslator.Of("g");
+Console.WriteLine(translator.Translate(t));
+// OUTPUT: g.V().has('person', 'name', 'marko').where(__.in('knows')).values('age')
+----
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2367[TINKERPOP-2367]
+
 == TinkerPop 3.5.2
 
-*Release Date: NOT OFFICIALLY RELEASED YET*
+*Release Date: January 10, 2022*
 
 Please see the link:https://github.com/apache/tinkerpop/blob/3.5.2/CHANGELOG.asciidoc#release-3-5-2[changelog] for a
 complete list of all the modifications that are part of this release.
 
 === Upgrading for Users
+
+==== Tx() in .NET and Python
+
+After Javascript, .NET and Python are now the second and third non-JVM variants of Gremlin to get support for
+link:https://tinkerpop.apache.org/docs/3.5.2/reference/#transactions[remote transactions].
+
+An example of the .NET `Tx()` syntax can be found in the
+link:https://tinkerpop.apache.org/docs/3.5.2/reference/#gremlin-dotnet-transactions[.NET Transaction Section].
+
+An example of the Python `tx()` syntax can be found in the
+link:https://tinkerpop.apache.org/docs/3.5.2/reference/#gremlin-python-transactions[Python Transaction Section]
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2556[TINKERPOP-2556] for .NET and
+link:https://issues.apache.org/jira/browse/TINKERPOP-2555[TINKERPOP-2555] for Python
 
 ==== datetime()
 
@@ -72,6 +443,34 @@ Some default value settings were changed to be consistent across different langu
 
 See: link:https://issues.apache.org/jira/browse/TINKERPOP-2379[TINKERPOP-2379]
 
+==== fold() Map
+
+The `fold()` step has long been used for reducing the traversal stream to a `List` as in:
+
+```text
+gremlin> g.V().values('age').fold()
+==>[29,27,32,35]
+gremlin> g.inject([a: 1],[b:2]).fold()
+==>[[a:1],[b:2]]
+```
+
+This step has always had a lesser known second signature though which has two arguments of a "seed" and "foldFunction":
+
+```text
+gremlin> g.inject([a: 1],[b:2]).fold([], addAll)
+==>[[a:1],[b:2]]
+```
+
+There was a bit of incomplete (or perhaps incorrect) logic that did not allow the folding of `Map` and as of this
+version, that issue has been resolved which enables `Map` entry merges:
+
+```text
+gremlin> g.inject([a: 1],[b:2]).fold([:], addAll)
+==>[a:1,b:2]
+```
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2667[TINKERPOP-2667]
+
 ==== Refinements to null
 
 Release 3.5.0 introduce the ability for there to be traversers that contained a `null` value. Since that time it has
@@ -79,17 +478,75 @@ been noted that supplying a `null` value as an argument to certain Gremlin steps
 were either not clear or perhaps even unexpected. The following changes were made to help make these behaviors more
 consistent and to further solidify the semantics of `null` usage in the Gremlin language:
 
-* `hasKey(null)`, `hasLabel(null)` and `has(T.label,null)` - These methods used to throw general `NullPointerException`
+* `hasKey(null)`, `hasLabel(null)` and `has(T.label,null)` - These steps used to throw general `NullPointerException`
 failures, but now filter results. As these structural elements of the graph can't be `null`, it will effectively
 filter all elements.
-* `hasValue(null)` - Formerly this method would throw a general `NullPointerException`, but now it will filter as
+* `hasValue(null)` - Formerly this step would throw a general `NullPointerException`, but now it will filter as
 expected.
+* `elementMap()`, `valueMap()`, `properties()`, and `values()` - These steps used to throw general
+`NullPointerException` failures if a `null` was provided as an argument, but now `null` keys are ignored for purpose
+of the filter.
 * `withSideEffect()` - This configuration step can now take a `null` for its value.
 * `sum()`, `mean()`, `max()` and `min()` - These methods used to throw general `NullPointerException` failures, but
 now ignore `null` values when other numbers are present. If all of the values in the stream are `null` then `hasNext()`
 return `false`.
 
-See: link:https://issues.apache.org/jira/browse/TINKERPOP-2605[TINKERPOP-2605]
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2605[TINKERPOP-2605],
+link:https://issues.apache.org/jira/browse/TINKERPOP-2620[TINKERPOP-2620]
+
+==== ProductiveByStrategy
+
+Gremlin steps that take a `by()` modulator have had varying behaviors for some time now and depending on the step and
+context of the argument given to the `by()`, the traversal might return a result, throw an exception, produce a `null`
+if no value is present, or filter results. While all of these behaviors cannot be reconciled in 3.5.x without breaking
+changes it is possible to start to deal with the exception behavior in a more consistent way.
+
+When a traversal given to `by()` does not contain a result, the traversal is deemed "unproductive". As mentioned above,
+unproductive arguments to `by()` lead to different results depending on the case:
+
+[source,text]
+----
+gremlin> g.V().aggregate('x').by('age').cap('x')
+==>[29,27,null,null,32,35]
+gremlin> g.V().aggregate('x').by(values('age').is(gt(29))).cap('x')
+The provided traverser does not map to a value: v[1]->[PropertiesStep([age],value), IsStep(gt(29))]
+Type ':help' or ':h' for help.
+Display stack trace? [yN]n
+gremlin> g.V().aggregate('x').by(out()).cap('x')
+The provided traverser does not map to a value: v[2]->[VertexStep(OUT,vertex)]
+Type ':help' or ':h' for help.
+Display stack trace? [yN]
+----
+
+With `ProductiveByStrategy` now installed by default in 3.5.2, the exception behavior is changed to follow the `null`
+behavior forcing the unproductive traversal to return something:
+
+[source,text]
+----
+gremlin> g.V().aggregate('x').by('age').cap('x')
+==>[29,27,null,null,32,35]
+gremlin> g.V().aggregate('x').by(values('age').is(gt(29))).cap('x')
+==>[null,null,null,null,32,35]
+gremlin> g.V().aggregate('x').by(out()).cap('x')
+==>[v[3],v[3],null,null,null,v[5]]
+----
+
+Note that `group()` step has some special behaviors that made it virtually impossible for `ProductiveByStrategy` to
+fully retain them, so ultimately the strategy ignores the modulators on that step except for the simple cases where the
+key modulator is a basic `ValueTraversal` (e.g. `by('name')')`. As a result, for `group()` the behavior should be
+unchanged with exceptions retained:
+
+[source,text]
+----
+gremlin> g.V().group().by(values('age'))
+==>[null:[v[3],v[5]],32:[v[4]],35:[v[6]],27:[v[2]],29:[v[1]]]
+gremlin> g.V().group().by(values('age').is(gt(29)))
+The provided traverser does not map to a value: v[1]->[PropertiesStep([age],value), IsStep(gt(29))]
+Type ':help' or ':h' for help.
+Display stack trace? [yN]
+----
+
+See: link:https://issues.apache.org/jira/browse/TINKERPOP-2635[TINKERPOP-2635]
 
 == TinkerPop 3.5.1
 
@@ -115,6 +572,16 @@ the javascript library that contains the logic for the site has been made availa
 independently and has been published to link:https://www.npmjs.com/package/gremlint[npm].
 
 See: link:https://issues.apache.org/jira/browse/TINKERPOP-2551[TINKERPOP-2551]
+
+==== SSL Exceptions
+
+When connecting to an SSL enabled server using Java, errors with that connectivity would result in a `RuntimeException`
+that wrapped an underlying `NoHostAvailableException` which did not surface information about the SSL problem. For
+this sort of failure in 3.5.2, the `RuntimeException` has been replaced with the `NoHostAvailableException` which in
+turn wraps a more specific `SSLException`. While this change represents a small break in exception handling, it seemed
+a worthwhile change to take, so as to help make this error more clear when it arises.
+
+See: link: https://issues.apache.org/jira/browse/TINKERPOP-2616[TINKERPOP-2616]
 
 == TinkerPop 3.5.0
 
@@ -225,10 +692,10 @@ to
 org.apache.commons.configuration2.*
 ----
 
-It is also worth noting that default list handling in configurations is treated differently. TinkerPop largely
-disabled the default list handling approach in `Configuration` 1.x, but if that functionality is still needed, it can
-be reclaimed by setting the `LegacyListDelimiterHandler` - details for doing taking this step and other relevant
-upgrade information can be found in the link:https://commons.apache.org/proper/commons-configuration/userguide/upgradeto2_0.html[2.x Upgrade Documentation].
+It is also worth noting that default list handling in configurations is treated differently. TinkerPop disabled the
+default list handling approach in `Configuration` 1.x, but if that functionality is still needed, it can be reclaimed
+by setting the `LegacyListDelimiterHandler` - details for doing taking this step and other relevant upgrade information
+can be found in the link:https://commons.apache.org/proper/commons-configuration/userguide/upgradeto2_0.html[2.x Upgrade Documentation].
 
 *Neo4j*
 
@@ -406,7 +873,7 @@ IMPORTANT: The `g.tx()` is only supported in Java at this time. Support for othe
 future releases on the 3.5.x line.
 
 See: link:https://issues.apache.org/jira/browse/TINKERPOP-2537[TINKERPOP-2537],
-link:https://tinkerpop.apache.org/docs/current/reference/#transactions[Reference Documentation - Transactions]
+link:https://tinkerpop.apache.org/docs/3.5.0/reference/#transactions[Reference Documentation - Transactions]
 
 ==== Anonymous Child Traversals
 
@@ -787,7 +1254,7 @@ g = traversal().withRemote(DriverRemoteConnection(
 ----
 
 See: link:https://issues.apache.org/jira/browse/TINKERPOP-1641[TINKERPOP-1641],
-link:https://tinkerpop.apache.org/docs/current/reference/#gremlin-python-connecting[Reference Documentation]
+link:https://tinkerpop.apache.org/docs/x.y.z/reference/#gremlin-python-connecting[Reference Documentation]
 
 ==== Deprecation Removal
 

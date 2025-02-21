@@ -17,34 +17,17 @@
  * under the License.
  */
 
-import org.apache.tinkerpop.gremlin.structure.util.empty.EmptyGraph
-import org.apache.tinkerpop.gremlin.process.traversal.translator.PythonTranslator
-import org.apache.tinkerpop.gremlin.groovy.jsr223.GremlinGroovyScriptEngine
-import org.apache.tinkerpop.gremlin.groovy.jsr223.ast.VarAsBindingASTTransformation
-import org.apache.tinkerpop.gremlin.groovy.jsr223.ast.RepeatASTTransformationCustomizer
-import org.apache.tinkerpop.gremlin.groovy.jsr223.GroovyCustomizer
-import org.codehaus.groovy.control.customizers.CompilationCustomizer
+import org.apache.tinkerpop.gremlin.language.translator.GremlinTranslator
+import org.apache.tinkerpop.gremlin.language.translator.Translator
 import org.apache.tinkerpop.gremlin.language.corpus.FeatureReader
 
-import javax.script.SimpleBindings
-
-import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal
+import java.nio.file.Paths
 
 // file is overwritten on each generation
 radishGremlinFile = new File("${projectBaseDir}/gremlin-python/src/main/python/radish/gremlin.py")
 
 // assumes globally unique scenario names for keys with list of Gremlin traversals as they appear
-gremlins = FeatureReader.parse("${projectBaseDir}")
-
-gremlinGroovyScriptEngine = new GremlinGroovyScriptEngine(new GroovyCustomizer() {
-    public CompilationCustomizer create() {
-        return new RepeatASTTransformationCustomizer(new VarAsBindingASTTransformation())
-    }
-})
-translator = PythonTranslator.of('g')
-g = traversal().withEmbedded(EmptyGraph.instance())
-bindings = new SimpleBindings()
-bindings.put('g', g)
+gremlins = FeatureReader.parseGrouped(Paths.get("${projectBaseDir}", "gremlin-test", "src", "main", "resources", "org", "apache", "tinkerpop", "gremlin", "test", "features").toString())
 
 radishGremlinFile.withWriter('UTF-8') { Writer writer ->
     writer.writeLine('#\n' +
@@ -72,36 +55,35 @@ radishGremlinFile.withWriter('UTF-8') { Writer writer ->
 
     writer.writeLine(
                     'from radish import world\n' +
+                    'import datetime\n' +
+                    'from gremlin_python.statics import long, bigint, GremlinType\n' +
                     'from gremlin_python.process.anonymous_traversal import traversal\n' +
+                    'from gremlin_python.process.strategies import *\n' +
                     'from gremlin_python.process.traversal import TraversalStrategy\n' +
                     'from gremlin_python.process.graph_traversal import __\n' +
                     'from gremlin_python.structure.graph import Graph\n' +
-                    'from gremlin_python.process.traversal import Barrier, Cardinality, P, TextP, Pop, Scope, Column, Order, Direction, T, Pick, Operator, IO, WithOptions\n')
+                    'from gremlin_python.process.traversal import Barrier, Cardinality, CardinalityValue, P, TextP, Pop, Scope, Column, Order, Direction, DT, Merge, T, Pick, Operator, IO, WithOptions\n')
 
-    // Groovy can't process certain null oriented calls because it gets confused with the right overload to call
-    // at runtime. using this approach for now as these are the only such situations encountered so far. a better
-    // solution may become necessary as testing of nulls expands.
-    def staticTranslate = [
-            g_injectXnull_nullX: "    'g_injectXnull_nullX': [(lambda g: g.inject(None,None))], ",
-            g_VX1X_valuesXageX_injectXnull_nullX: "    'g_VX1X_valuesXageX_injectXnull_nullX': [(lambda g, xx1=None: g.V(xx1).values('age').inject(None,None))], "
-    ]
+    // some traversals may require a static translation if the translator can't handle them for some reason
+    def staticTranslate = [:]
+    // SAMPLE: g_injectXnull_nullX: "    'g_injectXnull_nullX': [(lambda g: g.inject(None,None))], ",
 
     writer.writeLine('world.gremlins = {')
     gremlins.each { k,v ->
-        if (staticTranslate.containsKey(k)) {
+        // skipping lambdas until we decide for sure that they are out in 4.x
+        if (v.any { it.contains('l1')} || v.any { it.contains('l2')} || v.any { it.contains('c1')} || v.any { it.contains('c2')} || v.any { it.contains('pred1')} || v.any { it.contains('Lambda')}) {
+            writer.writeLine("    '${k}': [],  # skipping as it contains a lambda")
+        } else if (staticTranslate.containsKey(k)) {
             writer.writeLine(staticTranslate[k])
         } else {
             writer.write("    '")
             writer.write(k)
             writer.write("': [")
-            def collected = v.collect {
-                def t = gremlinGroovyScriptEngine.eval(it, bindings)
-                [t, t.bytecode.bindings.keySet()]
-            }
-            def uniqueBindings = collected.collect { it[1] }.flatten().unique()
+            def collected = v.collect { GremlinTranslator.translate(it, Translator.PYTHON) }
+            def uniqueBindings = collected.collect { it.getParameters() }.flatten().unique()
             def gremlinItty = collected.iterator()
             while (gremlinItty.hasNext()) {
-                def t = gremlinItty.next()[0]
+                def t = gremlinItty.next()
                 writer.write("(lambda g")
                 if (!uniqueBindings.isEmpty()) {
                     writer.write(", ")
@@ -109,7 +91,7 @@ radishGremlinFile.withWriter('UTF-8') { Writer writer ->
                     writer.write("=None")
                 }
                 writer.write(":")
-                writer.write(translator.translate(t.bytecode).script)
+                writer.write(t.getTranslated())
                 writer.write(")")
                 if (gremlinItty.hasNext()) writer.write(', ')
             }

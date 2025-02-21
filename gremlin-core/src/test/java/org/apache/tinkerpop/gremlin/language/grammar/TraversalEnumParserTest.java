@@ -53,18 +53,19 @@ public class TraversalEnumParserTest {
                     {"org.apache.tinkerpop.gremlin.process.traversal.Scope", "traversalScope"},
                     {"org.apache.tinkerpop.gremlin.process.traversal.Order", "traversalOrder"},
                     {"org.apache.tinkerpop.gremlin.process.traversal.Pop", "traversalPop"},
+                    {"org.apache.tinkerpop.gremlin.process.traversal.Pick", "traversalPick"},
+                    {"org.apache.tinkerpop.gremlin.process.traversal.Merge", "traversalMerge"},
                     {"org.apache.tinkerpop.gremlin.process.traversal.SackFunctions$Barrier", "traversalSackMethod"},
                     {"org.apache.tinkerpop.gremlin.process.traversal.Operator", "traversalOperator"},
                     {"org.apache.tinkerpop.gremlin.structure.T", "traversalToken"},
                     {"org.apache.tinkerpop.gremlin.structure.Column", "traversalColumn"},
                     {"org.apache.tinkerpop.gremlin.structure.Direction", "traversalDirection"},
                     {"org.apache.tinkerpop.gremlin.structure.VertexProperty$Cardinality", "traversalCardinality"},
-                    {"org.apache.tinkerpop.gremlin.process.traversal.step.TraversalOptionParent$Pick", "traversalOptionParent"},
             });
         }
 
         @Test
-        public void testAllEnumTypes() throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        public void shouldParseAllEnumTypes() throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
             final Class<? extends Enum> enumType = (Class<? extends Enum>) (Class.forName(className));
             for (Enum enumConstant : enumType.getEnumConstants()) {
                 final GremlinLexer lexer = new GremlinLexer(CharStreams.fromString(enumConstant.name()));
@@ -91,12 +92,13 @@ public class TraversalEnumParserTest {
             return Arrays.asList(new Object[][]{
                     {"org.apache.tinkerpop.gremlin.process.traversal.Scope", "traversalScope"},
                     {"org.apache.tinkerpop.gremlin.process.traversal.Order", "traversalOrder"},
+                    {"org.apache.tinkerpop.gremlin.process.traversal.Merge", "traversalMerge"},
                     {"org.apache.tinkerpop.gremlin.structure.T", "traversalToken"}
             });
         }
 
         @Test
-        public void testAllQualifiedEnumTypes() throws
+        public void shouldParseAllQualifiedEnumTypes() throws
         ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
             Class<? extends Enum> enumType = (Class<? extends Enum>) (Class.forName(className));
             for (Enum enumConstant : enumType.getEnumConstants()) {

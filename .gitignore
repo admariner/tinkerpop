@@ -5,12 +5,15 @@ target/
 *.iws
 *.DS_Store
 *.ipr
+*.swp
 buildAll.sh
 build_output.txt
 .classpath
 .project
 .settings
 .factorypath
+.eggs
+gremlinpython.egg-info
 _bsp/
 doc/out
 docs/*.asciidoc
@@ -39,3 +42,6 @@ BenchmarkDotNet.Artifacts/
 /Dockerfile
 docs/gremlint/
 gremlint/
+coverage.out
+.env
+gremlinconsoletest.egg-info

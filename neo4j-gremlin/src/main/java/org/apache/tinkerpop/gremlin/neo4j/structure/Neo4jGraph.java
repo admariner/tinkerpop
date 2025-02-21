@@ -52,12 +52,18 @@ import java.util.stream.Stream;
  * @author Stephen Mallette (http://stephen.genoprime.com)
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  * @author Pieter Martin
+ * @deprecated See: https://tinkerpop.apache.org/docs/3.5.7/reference/#neo4j-gremlin
  */
 @Graph.OptIn(Graph.OptIn.SUITE_STRUCTURE_STANDARD)
 @Graph.OptIn(Graph.OptIn.SUITE_STRUCTURE_INTEGRATE)
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_STANDARD)
 @Graph.OptIn(Graph.OptIn.SUITE_PROCESS_LIMITED_STANDARD)
 @Graph.OptIn("org.apache.tinkerpop.gremlin.neo4j.NativeNeo4jSuite")
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.structure.TransactionMultiThreadedTest",
+        method = "*",
+        reason = "Some scenarios are supported by Neo4jGraph")
+@Deprecated
 public final class Neo4jGraph implements Graph, WrappedGraph<Neo4jGraphAPI> {
 
     static {
@@ -150,12 +156,16 @@ public final class Neo4jGraph implements Graph, WrappedGraph<Neo4jGraphAPI> {
                             return ((Number) id).longValue();
                         else if (id instanceof String)
                             return Long.valueOf(id.toString());
-                        else if (id instanceof Vertex) {
-                            return (Long) ((Vertex) id).id();
-                        } else
+                        else if (id instanceof Vertex && ((Vertex) id).id() instanceof Number)
+                            return ((Number) ((Vertex) id).id()).longValue();
+                        else if (null == id)
+                            return null;
+                        else
                             throw new IllegalArgumentException("Unknown vertex id type: " + id);
                     })
                     .flatMap(id -> {
+                        // can't have a null id so just filter
+                        if (null == id) return Stream.empty();
                         try {
                             return Stream.of(this.baseGraph.getNodeById(id));
                         } catch (final RuntimeException e) {
@@ -180,12 +190,16 @@ public final class Neo4jGraph implements Graph, WrappedGraph<Neo4jGraphAPI> {
                             return ((Number) id).longValue();
                         else if (id instanceof String)
                             return Long.valueOf(id.toString());
-                        else if (id instanceof Edge) {
-                            return (Long) ((Edge) id).id();
-                        } else
+                        else if (id instanceof Edge && ((Edge) id).id() instanceof Number)
+                            return ((Number) ((Edge) id).id()).longValue();
+                        else if (null == id)
+                            return null;
+                        else
                             throw new IllegalArgumentException("Unknown edge id type: " + id);
                     })
                     .flatMap(id -> {
+                        // can't have a null id so just filter
+                        if (null == id) return Stream.empty();
                         try {
                             return Stream.of(this.baseGraph.getRelationshipById(id));
                         } catch (final RuntimeException e) {

@@ -29,6 +29,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.PathProcessor;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.TraversalFilterStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.WhereTraversalStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.CoalesceStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PathStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.SelectOneStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.SelectStep;
@@ -45,6 +46,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -116,7 +118,7 @@ public final class PathProcessorStrategy extends AbstractTraversalStrategy<Trave
                 int index = TraversalHelper.stepIndex(whereTraversalStep, traversal);
                 final SelectOneStep<?, ?> selectOneStep = new SelectOneStep<>(traversal, Pop.last, whereStartStep.getScopeKeys().iterator().next());
                 traversal.addStep(index, selectOneStep);
-                final String generatedLabel = PathProcessorStrategy.generateLabel();
+                final String generatedLabel = generateLabel(whereStartStep);
                 if (selectOneStep.getPreviousStep() instanceof EmptyStep) {
                     TraversalHelper.insertBeforeStep(new IdentityStep<>(traversal), selectOneStep, traversal);
                     index++;
@@ -165,16 +167,22 @@ public final class PathProcessorStrategy extends AbstractTraversalStrategy<Trave
         }
 
         // process select("a").by(...)
-        final List<SelectOneStep> selectOneSteps = TraversalHelper.getStepsOfClass(SelectOneStep.class, traversal);
-        for (final SelectOneStep<?, ?> selectOneStep : selectOneSteps) {
-            if (selectOneStep.getPop() != Pop.all && selectOneStep.getPop() != Pop.mixed && // TODO: necessary?
-                    selectOneStep.getMaxRequirement().compareTo(PathProcessor.ElementRequirement.ID) > 0 &&
-                    labelCount(selectOneStep.getScopeKeys().iterator().next(), TraversalHelper.getRootTraversal(traversal)) <= 1) {
-                final int index = TraversalHelper.stepIndex(selectOneStep, traversal);
-                final Traversal.Admin<?, ?> localChild = selectOneStep.getLocalChildren().get(0);
-                selectOneStep.removeLocalChild(localChild);
-                final TraversalMapStep<?, ?> mapStep = new TraversalMapStep<>(traversal, localChild.clone());
-                traversal.addStep(index + 1, mapStep);
+        //
+        // unfortunately, this strategy needs to know about ProductiveByStrategy. the ordering of strategies
+        // doesn't have enough flexibility to handle this situation where ProductiveByStrategy can run prior
+        // to this but also after ByModulatorOptimizationStrategy.
+        if (!traversal.getStrategies().getStrategy(ProductiveByStrategy.class).isPresent()) {
+            final List<SelectOneStep> selectOneSteps = TraversalHelper.getStepsOfClass(SelectOneStep.class, traversal);
+            for (final SelectOneStep<?, ?> selectOneStep : selectOneSteps) {
+                if (selectOneStep.getPop() != Pop.all && selectOneStep.getPop() != Pop.mixed && // TODO: necessary?
+                        selectOneStep.getMaxRequirement().compareTo(PathProcessor.ElementRequirement.ID) > 0 &&
+                        labelCount(selectOneStep.getScopeKeys().iterator().next(), TraversalHelper.getRootTraversal(traversal)) <= 1) {
+                    final int index = TraversalHelper.stepIndex(selectOneStep, traversal);
+                    final Traversal.Admin<?, ?> localChild = selectOneStep.getLocalChildren().get(0);
+                    selectOneStep.removeLocalChild(localChild);
+                    final TraversalMapStep<?, ?> mapStep = new TraversalMapStep<>(traversal, localChild.clone());
+                    traversal.addStep(index + 1, mapStep);
+                }
             }
         }
     }
@@ -183,8 +191,19 @@ public final class PathProcessorStrategy extends AbstractTraversalStrategy<Trave
         return INSTANCE;
     }
 
-    private static String generateLabel() {
-        return IS_TESTING ? "xyz" : UUID.randomUUID().toString();
+    private static String generateLabel(final Step<?, ?> step) {
+        // use a predictable label here rather than a UUID. the UUID step label might get generated in
+        // different threads in OLAP and misbehave for something like:
+        // g.withComputer().V().as("a").out("created").where(__.as("a").values("name").is("josh")).in("created").values("name")
+        // because labels won't propagate for the SelectOneStep with processTraverserPathLabels if the labels
+        // end up being different. this bug has only recently shown itself an only under conditions i can't
+        // quite identify. it may have been masked for years by the "is.testing" flag which was pinning the
+        // label to "xyz" and for maven that flag is enabled. not sure if using the step id is "right" or "best"
+        // but it seems to give a predictable label/unique and actually one nicer label than the UUID. in the
+        // profile() the UUID almost looks like a bug if you don't understand why it's there. at least with
+        // this labelling the name of the strategy gives a hint
+        return IS_TESTING ? "xyz" : "[" + PathProcessorStrategy.class.getSimpleName() + "-" +
+                step.getId().replace(".", "+").replace("()", "") + "]";
     }
 
     private static int labelCount(final String label, final Traversal.Admin<?, ?> traversal) {

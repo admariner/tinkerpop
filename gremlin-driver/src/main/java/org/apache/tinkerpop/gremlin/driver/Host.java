@@ -77,11 +77,28 @@ public final class Host {
 
         // only do a connection re-attempt if one is not already in progress
         if (retryInProgress.compareAndSet(Boolean.FALSE, Boolean.TRUE)) {
-            retryThread = this.cluster.scheduler().scheduleAtFixedRate(() -> {
+            retryThread = this.cluster.hostScheduler().scheduleAtFixedRate(() -> {
                     logger.debug("Trying to reconnect to dead host at {}", this);
                     if (reconnect.apply(this)) reconnected();
                 }, cluster.connectionPoolSettings().reconnectInterval,
                 cluster.connectionPoolSettings().reconnectInterval, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    void tryReconnectingImmediately(final Function<Host, Boolean> reconnect) {
+        // only do a connection re-attempt if one is not already in progress
+        if (retryInProgress.compareAndSet(Boolean.FALSE, Boolean.TRUE)) {
+            retryThread = this.cluster.hostScheduler().scheduleAtFixedRate(() -> {
+                        logger.debug("Trying to reconnect to host at {}", this);
+                        final boolean reconnected = reconnect.apply(this);
+                        if (reconnected)
+                            reconnected();
+                        else {
+                            logger.warn("Marking {} as unavailable. Trying to reconnect.", this);
+                            isAvailable = false;
+                        }
+                    }, 0,
+                    cluster.connectionPoolSettings().reconnectInterval, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -95,8 +112,10 @@ public final class Host {
     }
 
     private static URI makeUriFromAddress(final InetSocketAddress addy, final String path, final boolean ssl) {
+        final Channelizer channelizer = new Channelizer.HttpChannelizer();
+
         try {
-            final String scheme = ssl ? "wss" : "ws";
+            final String scheme = channelizer.getScheme(ssl);
             return new URI(scheme, null, addy.getHostName(), addy.getPort(), path, null, null);
         } catch (URISyntaxException use) {
             throw new RuntimeException(String.format("URI for host could not be constructed from: %s", addy), use);
@@ -108,13 +127,13 @@ public final class Host {
         return hostLabel;
     }
 
-    public static interface Listener {
-        public void onAvailable(final Host host);
+    public interface Listener {
+        void onAvailable(final Host host);
 
-        public void onUnavailable(final Host host);
+        void onUnavailable(final Host host);
 
-        public void onNew(final Host host);
+        void onNew(final Host host);
 
-        public void onRemove(final Host host);
+        void onRemove(final Host host);
     }
 }

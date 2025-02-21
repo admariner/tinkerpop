@@ -24,6 +24,8 @@ from gremlin_python.process.graph_traversal import GraphTraversalSource
 from gremlin_python.process.traversal import TraversalStrategies
 from .. import statics
 
+import warnings
+
 
 class AnonymousTraversalSource(object):
 
@@ -34,11 +36,22 @@ class AnonymousTraversalSource(object):
     def traversal(cls, traversal_source_class=GraphTraversalSource):
         return AnonymousTraversalSource(traversal_source_class)
 
-    def withGraph(self, graph):
-        return self.traversal_source_class(graph, TraversalStrategies.global_cache[graph.__class__])
+    def with_(self, remote_connection):
+        return self.traversal_source_class(Graph(), TraversalStrategies(), None, remote_connection)
 
     def withRemote(self, remote_connection):
-        return self.withGraph(Graph()).withRemote(remote_connection)
+        warnings.warn(
+            "gremlin_python.process.AnonymousTraversalSource.withRemote will be replaced by "
+            "gremlin_python.process.AnonymousTraversalSource.with_.",
+            DeprecationWarning)
+        return self.with_(remote_connection)
+
+    def with_remote(self, remote_connection):
+        warnings.warn(
+            "gremlin_python.process.AnonymousTraversalSource.with_remote will be replaced by "
+            "gremlin_python.process.AnonymousTraversalSource.with_.",
+            DeprecationWarning)
+        return self.with_(remote_connection)
 
 
 def traversal(traversal_source_class=GraphTraversalSource):

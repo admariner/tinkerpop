@@ -66,6 +66,8 @@ public abstract class SumTest extends AbstractGremlinProcessTest {
 
     public abstract Traversal<Vertex, Map<String, Number>> get_g_V_hasLabelXsoftwareX_group_byXnameX_byXbothE_weight_sumX();
 
+    public abstract Traversal<Vertex, Integer> get_g_VX1X_valuesXageX_sumXlocalX(final Object vid1);
+
     @Test
     @LoadGraphWith(MODERN)
     public void g_V_age_sum() {
@@ -119,7 +121,6 @@ public abstract class SumTest extends AbstractGremlinProcessTest {
     public void g_V_aggregateXaX_byXfooX_sumXlocalX() {
         final Traversal<Vertex, Number> traversal = get_g_V_aggregateXaX_byXfooX_sumXlocalX();
         printTraversalForm(traversal);
-        assertNull(traversal.next());
         assertFalse(traversal.hasNext());
     }
 
@@ -127,8 +128,7 @@ public abstract class SumTest extends AbstractGremlinProcessTest {
     @LoadGraphWith(MODERN)
     public void g_V_aggregateXaX_byXfooX_capXaX_unfold_sum() {
         final Traversal<Vertex, Number> traversal = get_g_V_aggregateXaX_byXfooX_capXaX_unfold_sum();
-        printTraversalForm(traversal);
-        assertNull(traversal.next());
+        printTraversalForm(traversal);;
         assertFalse(traversal.hasNext());
     }
 
@@ -169,6 +169,14 @@ public abstract class SumTest extends AbstractGremlinProcessTest {
         assertEquals(2, map.size());
         assertEquals(1.0, map.get("ripple"));
         assertEquals(1.0, map.get("lop"));
+    }
+
+    @Test
+    @LoadGraphWith(MODERN)
+    public void g_VX1X_valuesXageX_sumXlocalX() {
+        final Traversal<Vertex, Integer> traversal = get_g_VX1X_valuesXageX_sumXlocalX(convertToVertexId("marko"));
+        printTraversalForm(traversal);
+        checkResults(Arrays.asList(29), traversal);
     }
 
     public static class Traversals extends SumTest {
@@ -226,5 +234,10 @@ public abstract class SumTest extends AbstractGremlinProcessTest {
         public Traversal<Vertex, Map<String, Number>> get_g_V_hasLabelXsoftwareX_group_byXnameX_byXbothE_weight_sumX() {
             return g.V().hasLabel("software").<String, Number>group().by("name").by(bothE().values("weight").sum());
         }
+
+        @Override
+        public Traversal<Vertex, Integer> get_g_VX1X_valuesXageX_sumXlocalX(final Object vid1) {
+            return g.V(vid1).values("age").sum(Scope.local);
+        };
     }
 }

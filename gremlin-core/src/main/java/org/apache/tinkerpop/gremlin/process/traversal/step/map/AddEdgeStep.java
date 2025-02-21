@@ -21,14 +21,16 @@ package org.apache.tinkerpop.gremlin.process.traversal.step.map;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.FromToModulating;
-import org.apache.tinkerpop.gremlin.process.traversal.step.Mutating;
+import org.apache.tinkerpop.gremlin.process.traversal.step.GType;
+import org.apache.tinkerpop.gremlin.process.traversal.step.GValue;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Scoping;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
+import org.apache.tinkerpop.gremlin.process.traversal.step.Writing;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.Parameters;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.CallbackRegistry;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.Event;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.EventUtil;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.event.ListCallbackRegistry;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -46,7 +48,7 @@ import java.util.Set;
  * @author Stephen Mallette (http://stephen.genoprime.com)
  */
 public class AddEdgeStep<S> extends ScalarMapStep<S, Edge>
-        implements Mutating<Event.EdgeAddedEvent>, TraversalParent, Scoping, FromToModulating {
+        implements Writing<Event.EdgeAddedEvent>, TraversalParent, Scoping, FromToModulating {
 
     private static final String FROM = Graph.Hidden.hide("from");
     private static final String TO = Graph.Hidden.hide("to");
@@ -55,6 +57,11 @@ public class AddEdgeStep<S> extends ScalarMapStep<S, Edge>
     private CallbackRegistry<Event.EdgeAddedEvent> callbackRegistry;
 
     public AddEdgeStep(final Traversal.Admin traversal, final String edgeLabel) {
+        super(traversal);
+        this.parameters.set(this, T.label, GValue.of(null, edgeLabel));
+    }
+
+    public AddEdgeStep(final Traversal.Admin traversal, final GValue<String> edgeLabel) {
         super(traversal);
         this.parameters.set(this, T.label, edgeLabel);
     }
@@ -96,21 +103,41 @@ public class AddEdgeStep<S> extends ScalarMapStep<S, Edge>
 
     @Override
     protected Edge map(final Traverser.Admin<S> traverser) {
-        final String edgeLabel = this.parameters.get(traverser, T.label, () -> Edge.DEFAULT_LABEL).get(0);
-        final Object theTo = this.parameters.get(traverser, TO, traverser::get).get(0);
-        if (!(theTo instanceof Vertex))
+        Object literalOrVar = this.parameters.get(traverser, T.label, () -> GValue.of(null, Edge.DEFAULT_LABEL)).get(0);
+        final GValue<String> edgeLabel = literalOrVar instanceof String ?
+                GValue.ofString(null, (String) literalOrVar) :
+                (GValue<String>) literalOrVar;
+
+        final Object theTo;
+        try {
+            theTo = this.parameters.get(traverser, TO, traverser::get).get(0);
+        } catch (IllegalArgumentException e) { // as thrown by TraversalUtil.apply()
             throw new IllegalStateException(String.format(
-                    "addE(%s) could not find a Vertex for to() - encountered: %s", edgeLabel,
+                    "addE(%s) failed because the to() traversal (which should give a Vertex) failed with: %s",
+                    edgeLabel, e.getMessage()));
+        }
+
+        if (!GValue.instanceOf(theTo, GType.VERTEX))
+            throw new IllegalStateException(String.format(
+                    "The value given to addE(%s).to() must resolve to a Vertex but %s was specified instead", edgeLabel,
                     null == theTo ? "null" : theTo.getClass().getSimpleName()));
 
-        final Object theFrom = this.parameters.get(traverser, FROM, traverser::get).get(0);
-        if (!(theFrom instanceof Vertex))
+        final Object theFrom;
+        try {
+            theFrom  = this.parameters.get(traverser, FROM, traverser::get).get(0);
+        } catch (IllegalArgumentException e) { // as thrown by TraversalUtil.apply()
             throw new IllegalStateException(String.format(
-                    "addE(%s) could not find a Vertex for from() - encountered: %s", edgeLabel,
+                    "addE(%s) failed because the from() traversal (which should give a Vertex) failed with: %s",
+                    edgeLabel, e.getMessage()));
+        }
+
+        if (!GValue.instanceOf(theFrom, GType.VERTEX))
+            throw new IllegalStateException(String.format(
+                    "The value given to addE(%s).to() must resolve to a Vertex but %s was specified instead", edgeLabel,
                     null == theFrom ? "null" : theFrom.getClass().getSimpleName()));
 
-        Vertex toVertex = (Vertex) theTo;
-        Vertex fromVertex = (Vertex) theFrom;
+        Vertex toVertex = GValue.getFrom(theTo);
+        Vertex fromVertex = GValue.getFrom(theFrom);
 
         if (toVertex instanceof Attachable)
             toVertex = ((Attachable<Vertex>) toVertex)
@@ -119,12 +146,8 @@ public class AddEdgeStep<S> extends ScalarMapStep<S, Edge>
             fromVertex = ((Attachable<Vertex>) fromVertex)
                     .attach(Attachable.Method.get(this.getTraversal().getGraph().orElse(EmptyGraph.instance())));
 
-        final Edge edge = fromVertex.addEdge(edgeLabel, toVertex, this.parameters.getKeyValues(traverser, TO, FROM, T.label));
-        if (callbackRegistry != null && !callbackRegistry.getCallbacks().isEmpty()) {
-            final EventStrategy eventStrategy = getTraversal().getStrategies().getStrategy(EventStrategy.class).get();
-            final Event.EdgeAddedEvent vae = new Event.EdgeAddedEvent(eventStrategy.detach(edge));
-            callbackRegistry.getCallbacks().forEach(c -> c.accept(vae));
-        }
+        final Edge edge = fromVertex.addEdge(edgeLabel.get(), toVertex, this.parameters.getKeyValues(traverser, TO, FROM, T.label));
+        EventUtil.registerEdgeCreation(callbackRegistry, getTraversal(), edge);
         return edge;
     }
 

@@ -19,7 +19,6 @@
 package org.apache.tinkerpop.gremlin.groovy.jsr223;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.TranslationStrategy;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.util.TinkerGraphProvider;
 
@@ -195,14 +194,6 @@ import org.apache.tinkerpop.gremlin.util.TinkerGraphProvider;
         method = "*",
         reason = "Reason requires investigation")
 @Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategyProcessTest",
-        method = "*",
-        reason = "Strategy not properly supported by Bytecode based traversals")
-@Graph.OptOut(
-        test = "org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.ElementIdStrategyProcessTest",
-        method = "*",
-        reason = "Strategy not properly supported by Bytecode based traversals")
-@Graph.OptOut(
         test = "org.apache.tinkerpop.gremlin.process.traversal.CoreTraversalTest",
         method = "shouldNeverPropagateANoBulkTraverser",
         reason = "Reason requires investigation")
@@ -214,10 +205,13 @@ import org.apache.tinkerpop.gremlin.util.TinkerGraphProvider;
         test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.WriteTest",
         method = "*",
         reason = "read and write tests don't translate locally well because of calling iterate() inside read()/write() add a none()")
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.step.OrderabilityTest",
+        method = "g_inject_order_with_unknown_type",
+        reason = "GroovyTranslator only supports known Gremlin types")
 public class ParameterizedGroovyTranslatorProvider extends TinkerGraphProvider {
     @Override
     public GraphTraversalSource traversal(final Graph graph) {
-        final GraphTraversalSource g = graph.traversal();
-        return g.withStrategies(new TranslationStrategy(g, GroovyTranslator.of("g", true), true));
+        return graph.traversal();
     }
 }
