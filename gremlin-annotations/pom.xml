@@ -21,7 +21,7 @@ limitations under the License.
     <parent>
         <artifactId>tinkerpop</artifactId>
         <groupId>org.apache.tinkerpop</groupId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>4.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>gremlin-annotations</artifactId>
@@ -36,7 +36,7 @@ limitations under the License.
         <dependency>
             <groupId>com.squareup</groupId>
             <artifactId>javapoet</artifactId>
-            <version>1.13.0</version>
+            <version>${javapoet.version}</version>
         </dependency>
         <!-- TESTING -->
         <dependency>
@@ -57,26 +57,30 @@ limitations under the License.
         <dependency>
             <groupId>com.google.testing.compile</groupId>
             <artifactId>compile-testing</artifactId>
-            <version>0.19</version>
+            <version>0.21.0</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.guava</groupId>
                     <artifactId>guava</artifactId>
                 </exclusion>
-            </exclusions>
-        </dependency>
-        <!-- self-conflict resolutions over compile-testing -->
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>30.0-jre</version>
-            <exclusions>
-                <!-- prefer the versions from compile-testing -->
+                <exclusion>
+                    <groupId>com.google.errorprone</groupId>
+                    <artifactId>error_prone_annotations</artifactId>
+                </exclusion>
                 <exclusion>
                     <groupId>org.checkerframework</groupId>
                     <artifactId>checker-qual</artifactId>
                 </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- resolve self-conflict within compile-testing -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>31.1-jre</version>
+            <scope>test</scope>
+            <exclusions>
                 <exclusion>
                     <groupId>com.google.errorprone</groupId>
                     <artifactId>error_prone_annotations</artifactId>
@@ -84,9 +88,16 @@ limitations under the License.
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.checkerframework</groupId>
-            <artifactId>checker-qual</artifactId>
-            <version>3.7.0</version>
+            <groupId>com.google.errorprone</groupId>
+            <artifactId>error_prone_annotations</artifactId>
+            <version>2.4.0</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>tools</artifactId>
+                    <groupId>com.sun</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
     <build>
@@ -127,7 +138,7 @@ limitations under the License.
         <profile>
             <id>jdk11</id>
             <activation>
-                <jdk>11</jdk>
+                <jdk>[11,18)</jdk>
             </activation>
             <build>
                 <plugins>

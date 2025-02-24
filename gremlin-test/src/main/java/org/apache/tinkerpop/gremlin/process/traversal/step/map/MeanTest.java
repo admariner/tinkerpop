@@ -66,6 +66,8 @@ public abstract class MeanTest extends AbstractGremlinProcessTest {
 
     public abstract Traversal<List<Integer>, Double> get_g_injectXlistXnull_10_20_nullXX_meanXlocalX();
 
+    public abstract Traversal<Vertex, Double> get_g_VX1X_valuesXageX_meanXlocalX(final Object vid1);
+
     @Test
     @LoadGraphWith(MODERN)
     public void g_V_age_mean() {
@@ -91,7 +93,6 @@ public abstract class MeanTest extends AbstractGremlinProcessTest {
     public void g_V_aggregateXaX_byXfooX_meanXlocalX() {
         final Traversal<Vertex, Double> traversal = get_g_V_aggregateXaX_byXfooX_meanXlocalX();
         printTraversalForm(traversal);
-        assertNull(traversal.next());
         assertFalse(traversal.hasNext());
     }
 
@@ -100,7 +101,6 @@ public abstract class MeanTest extends AbstractGremlinProcessTest {
     public void g_V_aggregateXaX_byXfooX_capXaX_unfold_mean() {
         final Traversal<Vertex, Double> traversal = get_g_V_aggregateXaX_byXfooX_capXaX_unfold_mean();
         printTraversalForm(traversal);
-        assertNull(traversal.next());
         assertFalse(traversal.hasNext());
     }
 
@@ -146,6 +146,14 @@ public abstract class MeanTest extends AbstractGremlinProcessTest {
         final Double mean = traversal.next();
         assertEquals(15.00, mean, 0.05);
         assertFalse(traversal.hasNext());
+    }
+
+    @Test
+    @LoadGraphWith(MODERN)
+    public void g_VX1X_valuesXageX_meanXlocalX() {
+        final Traversal<Vertex, Double> traversal = get_g_VX1X_valuesXageX_meanXlocalX(convertToVertexId("marko"));
+        printTraversalForm(traversal);
+        checkResults(Arrays.asList(29.0), traversal);
     }
 
     public static class Traversals extends MeanTest {
@@ -204,5 +212,10 @@ public abstract class MeanTest extends AbstractGremlinProcessTest {
         public Traversal<List<Integer>, Double> get_g_injectXlistXnull_10_20_nullXX_meanXlocalX() {
             return g.inject(Arrays.asList(null, 10, 20, null)).mean(Scope.local);
         }
+
+        @Override
+        public Traversal<Vertex, Double> get_g_VX1X_valuesXageX_meanXlocalX(final Object vid1) {
+            return g.V(vid1).values("age").mean(Scope.local);
+        };
     }
 }

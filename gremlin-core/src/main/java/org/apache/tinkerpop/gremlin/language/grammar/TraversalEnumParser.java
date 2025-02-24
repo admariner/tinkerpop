@@ -20,6 +20,11 @@ package org.apache.tinkerpop.gremlin.language.grammar;
 
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.apache.tinkerpop.gremlin.process.traversal.Scope;
+import org.apache.tinkerpop.gremlin.structure.Column;
+import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.T;
+
+import java.util.function.Function;
 
 /**
  * Traversal enum parser parses all the enums like (e.g. {@link Scope} in graph traversal.
@@ -42,6 +47,26 @@ public class TraversalEnumParser {
             return E.valueOf(enumType, strippedText);
         } else {
             return E.valueOf(enumType, text);
+        }
+    }
+
+    /**
+     * Parsing of {@link Direction} requires some special handling because of aliases (from/to).
+     */
+    public static Direction parseTraversalDirectionFromContext(final GremlinParser.TraversalDirectionContext context) {
+        String text = context.getText();
+        if (text.startsWith(Direction.class.getSimpleName()))
+            text = text.substring(Direction.class.getSimpleName().length() + 1);
+        return Direction.directionValueOf(text);
+    }
+
+    public static Function parseTraversalFunctionFromContext(final GremlinParser.TraversalFunctionContext context) {
+        if (context.traversalToken() != null) {
+            return TraversalEnumParser.parseTraversalEnumFromContext(T.class, context.traversalToken());
+        } else if (context.traversalColumn() != null)
+            return TraversalEnumParser.parseTraversalEnumFromContext(Column.class, context.traversalColumn());
+        else {
+            throw new GremlinParserException("Unrecognized enum for traversal function");
         }
     }
 }

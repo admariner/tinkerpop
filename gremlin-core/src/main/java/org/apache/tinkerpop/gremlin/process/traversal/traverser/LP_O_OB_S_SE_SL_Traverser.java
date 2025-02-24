@@ -20,7 +20,6 @@
 package org.apache.tinkerpop.gremlin.process.traversal.traverser;
 
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
-import org.apache.tinkerpop.gremlin.process.traversal.Pop;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ImmutablePath;
@@ -89,7 +88,7 @@ public class LP_O_OB_S_SE_SL_Traverser<T> extends O_OB_S_SE_SL_Traverser<T> {
 
     @Override
     public int hashCode() {
-        return carriesUnmergeableSack() ? System.identityHashCode(this) : (super.hashCode() ^ this.path.hashCode());
+        return carriesUnmergeableSack() ? System.identityHashCode(this) : (31 * super.hashCode() + this.path.hashCode());
     }
 
     protected final boolean equals(final LP_O_OB_S_SE_SL_Traverser other) {

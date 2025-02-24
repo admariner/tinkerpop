@@ -18,10 +18,11 @@
  */
 package org.apache.tinkerpop.gremlin.driver;
 
+import org.apache.tinkerpop.gremlin.driver.handler.IdleConnectionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.tinkerpop.gremlin.driver.exception.ConnectionException;
-import org.apache.tinkerpop.gremlin.driver.message.RequestMessage;
+import org.apache.tinkerpop.gremlin.util.message.RequestMessage;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
@@ -29,16 +30,13 @@ import io.netty.channel.ChannelPromise;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.net.URI;
-import java.util.UUID;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -47,39 +45,32 @@ import java.util.concurrent.atomic.AtomicReference;
  * @author Stephen Mallette (http://stephen.genoprime.com)
  */
 final class Connection {
+    public static final int MAX_WAIT_FOR_CONNECTION = 16000;
+    public static final int MAX_WAIT_FOR_CLOSE = 3000;
+    public static final long MAX_RESPONSE_CONTENT_LENGTH = Integer.MAX_VALUE;
+    public static final int RECONNECT_INTERVAL = 1000;
+    public static final int RESULT_ITERATION_BATCH_SIZE = 64;
+    public static final long CONNECTION_SETUP_TIMEOUT_MILLIS = 15000;
+    public static final long CONNECTION_IDLE_TIMEOUT_MILLIS = 180000;
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
 
     private final Channel channel;
     private final URI uri;
-    private final ConcurrentMap<UUID, ResultQueue> pending = new ConcurrentHashMap<>();
+    private final AtomicReference<ResultQueue> pending = new AtomicReference<>();
     private final Cluster cluster;
     private final Client client;
     private final ConnectionPool pool;
-
-    public static final int MAX_IN_PROCESS = 4;
-    public static final int MIN_IN_PROCESS = 1;
-    public static final int MAX_WAIT_FOR_CONNECTION = 16000;
-    public static final int MAX_WAIT_FOR_CLOSE = 3000;
-    public static final int MAX_CONTENT_LENGTH = 10 * 1024 * 1024;
-
-    public static final int RECONNECT_INTERVAL = 1000;
-    public static final int RESULT_ITERATION_BATCH_SIZE = 64;
-    public static final long KEEP_ALIVE_INTERVAL = 180000;
-    public final static long CONNECTION_SETUP_TIMEOUT_MILLIS = 15000;
+    private final String creatingThread;
+    private final String createdTimestamp;
 
     /**
-     * When a {@code Connection} is borrowed from the pool, this number is incremented to indicate the number of
-     * times it has been taken and is decremented when it is returned.  This number is one indication as to how
-     * busy a particular {@code Connection} is.
+     * Is a {@code Connection} borrowed from the pool.
      */
-    public final AtomicInteger borrowed = new AtomicInteger(0);
+    private final AtomicBoolean isBorrowed = new AtomicBoolean(false);
     /**
      * This boolean guards the replace of the connection and ensures that it only occurs once.
      */
     public final AtomicBoolean isBeingReplaced = new AtomicBoolean(false);
-    private final AtomicReference<Class<Channelizer>> channelizerClass = new AtomicReference<>(null);
-
-    private final int maxInProcess;
 
     private final String connectionLabel;
 
@@ -88,61 +79,54 @@ final class Connection {
     private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
     private final AtomicBoolean shutdownInitiated = new AtomicBoolean(false);
 
-    public Connection(final URI uri, final ConnectionPool pool, final int maxInProcess) throws ConnectionException {
+    public Connection(final URI uri, final ConnectionPool pool) throws ConnectionException {
         this.uri = uri;
         this.cluster = pool.getCluster();
         this.client = pool.getClient();
         this.pool = pool;
-        this.maxInProcess = maxInProcess;
-
+        this.creatingThread = Thread.currentThread().getName();
+        this.createdTimestamp = Instant.now().toString();
         connectionLabel = "Connection{host=" + pool.host + "}";
 
         if (cluster.isClosing())
             throw new IllegalStateException("Cannot open a connection with the cluster after close() is called");
 
+        if (client.isClosing())
+            throw new IllegalStateException("Cannot open a connection with the client after close() is called");
+
         final Bootstrap b = this.cluster.getFactory().createBootstrap();
         try {
-            if (channelizerClass.get() == null) {
-                channelizerClass.compareAndSet(null, (Class<Channelizer>) Class.forName(cluster.connectionPoolSettings().channelizer));
-            }
-
-            channelizer = channelizerClass.get().newInstance();
+            channelizer = new Channelizer.HttpChannelizer();
             channelizer.init(this);
             b.channel(NioSocketChannel.class).handler(channelizer);
 
             channel = b.connect(uri.getHost(), uri.getPort()).sync().channel();
             channelizer.connected();
 
-            /* Configure behaviour on close of this channel.
-             *
-             * This callback would trigger the workflow to destroy this connection, so that a new request doesn't pick
-             * this closed connection.
-             */
+            // Configure behaviour on close of this channel. This callback would trigger the workflow to destroy this
+            // connection, so that a new request doesn't pick this closed connection.
             final Connection thisConnection = this;
             channel.closeFuture().addListener((ChannelFutureListener) future -> {
                 logger.debug("OnChannelClose callback called for channel {}", channel);
 
-                // Replace the channel if it was not intentionally closed using CloseAsync method.
+                // if the closeFuture is not set, it means that closeAsync() wasn't called
                 if (thisConnection.closeFuture.get() == null) {
-                    // delegate the task to worker thread and free up the event loop
-                    thisConnection.cluster.executor().submit(() -> thisConnection.pool.definitelyDestroyConnection(thisConnection));
+                    if (!channel.hasAttr(IdleConnectionHandler.IDLE_STATE_EVENT)) {
+                        // if idle state event is not present, it means the server closed the channel for some reason.
+                        // it's important to distinguish that difference in debugging
+                        logger.error(String.format(
+                                "Server closed the Connection on channel %s - scheduling removal from %s",
+                                channel.id().asShortText(), thisConnection.pool.getPoolInfo(thisConnection)));
+                    }
+
+                    // delegate the task to scheduler thread and free up the event loop
+                    thisConnection.cluster.connectionScheduler().submit(() -> thisConnection.pool.destroyConnection(thisConnection));
                 }
             });
-
-            logger.info("Created new connection for {}", uri);
+            logger.debug("Created new connection for {}", uri);
         } catch (Exception ex) {
-            throw new ConnectionException(uri, "Could not open " + this.toString(), ex);
+            throw new ConnectionException(uri, "Could not open " + getConnectionInfo(true), ex);
         }
-    }
-
-    /**
-     * A connection can only have so many things in process happening on it at once, where "in process" refers to
-     * the maximum number of in-process requests less the number of pending responses.
-     */
-    public int availableInProcess() {
-        // no need for a negative available amount - not sure that the pending size can ever exceed maximum, but
-        // better to avoid the negatives that would ensue if it did
-        return Math.max(0, maxInProcess - pending.size());
     }
 
     /**
@@ -153,6 +137,10 @@ final class Connection {
      */
     public boolean isDead() {
         return (channel != null && !channel.isActive());
+    }
+
+    public AtomicBoolean isBorrowed() {
+        return isBorrowed;
     }
 
     boolean isClosing() {
@@ -167,11 +155,7 @@ final class Connection {
         return cluster;
     }
 
-    Client getClient() {
-        return client;
-    }
-
-    ConcurrentMap<UUID, ResultQueue> getPending() {
+    AtomicReference<ResultQueue> getPending() {
         return pending;
     }
 
@@ -194,17 +178,13 @@ final class Connection {
                 shutdown(future);
         } else {
             // there may be some pending requests. schedule a job to wait for those to complete and then shutdown
-            new CheckForPending(future).runUntilDone(cluster.executor());
+            new CheckForPending(future).runUntilDone(cluster.connectionScheduler());
         }
 
         return future;
     }
 
     public ChannelPromise write(final RequestMessage requestMessage, final CompletableFuture<ResultSet> resultQueueSetup) {
-        // dont allow the same request id to be used as one that is already in the queue
-        if (pending.containsKey(requestMessage.getRequestId()))
-            throw new IllegalStateException(String.format("There is already a request pending with an id of: %s", requestMessage.getRequestId()));
-
         // once there is a completed write, then create a traverser for the result set and complete
         // the promise so that the client knows that that it can start checking for results.
         final Connection thisConnection = this;
@@ -244,7 +224,8 @@ final class Connection {
                         }, cluster.executor());
 
                         final ResultQueue handler = new ResultQueue(resultLinkedBlockingQueue, readCompleted);
-                        pending.put(requestMessage.getRequestId(), handler);
+                        // pending.put(requestMessage.getRequestId(), handler);
+                        pending.set(handler);
 
                         // resultQueueSetup should only be completed by a worker since the application code might have sync
                         // completion stages attached to it which and we do not want the event loop threads to process those
@@ -276,7 +257,7 @@ final class Connection {
     }
 
     private boolean isOkToClose() {
-        return pending.isEmpty() || (channel != null && !channel.isOpen()) || !pool.host.isAvailable();
+        return pending.get() == null || (channel != null && !channel.isOpen()) || !pool.host.isAvailable();
     }
 
     /**
@@ -298,35 +279,63 @@ final class Connection {
         // guess). that seems to put the executor thread in a monitor state that it doesn't recover from. since all
         // the code in here is behind shutdownInitiated the synchronized doesn't seem necessary
         if (shutdownInitiated.compareAndSet(false, true)) {
-            final String connectionInfo = this.getConnectionInfo();
-            channelizer.close(channel);
+            // take a defensive posture here in the event the channelizer didn't get initialized somehow and a
+            // close() on the Connection is still called
+            if (channelizer != null)
+                channelizer.close(channel);
 
-            final ChannelPromise promise = channel.newPromise();
-            promise.addListener(f -> {
-                if (f.cause() != null) {
-                    future.completeExceptionally(f.cause());
+            // seems possible that the channelizer could initialize but fail to produce a channel, so worth checking
+            // null before proceeding here. also if the cluster is in shutdown then the event loop could be shutdown
+            // already and there will be no way to get a new promise out there.
+            if (channel != null) {
+                final ChannelPromise promise = channel.newPromise();
+                promise.addListener(f -> {
+                    if (f.cause() != null) {
+                        future.completeExceptionally(f.cause());
+                    } else {
+                        if (logger.isDebugEnabled())
+                            logger.debug("{} destroyed successfully.", this.getConnectionInfo());
+
+                        future.complete(null);
+                    }
+                });
+
+                // close the netty channel, if not already closed
+                if (!channel.closeFuture().isDone()) {
+                    channel.close(promise);
                 } else {
-                    if (logger.isDebugEnabled())
-                        logger.debug("{} destroyed successfully.", connectionInfo);
-
-                    future.complete(null);
+                    if (!promise.trySuccess()) {
+                        logger.warn("Failed to mark a promise as success because it is done already: {}", promise);
+                    }
                 }
-            });
-
-            // close the netty channel, if not already closed
-            if (!channel.closeFuture().isDone()) {
-                channel.close(promise);
             } else {
-                if (!promise.trySuccess()) {
-                    logger.warn("Failed to mark a promise as success because it is done already: {}", promise);
-                }
+                // if we dont handle the supplied future it can hang the close
+                future.complete(null);
             }
+        } else {
+            // if we dont handle the supplied future it can hang the close
+            future.complete(null);
         }
     }
 
+    /**
+     * Gets a message that describes the state of the connection.
+     */
     public String getConnectionInfo() {
-        return String.format("Connection{channel=%s, host=%s, isDead=%s, borrowed=%s, pending=%s}",
-                channel, pool.host, isDead(), borrowed, pending.size());
+        return this.getConnectionInfo(true);
+    }
+
+    /**
+     * Gets a message that describes the state of the connection.
+     *
+     * @param showHost determines if the {@link Host} should be displayed in the message.
+     */
+    public String getConnectionInfo(final boolean showHost) {
+        return showHost ?
+                String.format("Connection{channel=%s host=%s isDead=%s borrowed=%s pending=%s markedReplaced=%s closing=%s created=%s thread=%s}",
+                        getChannelId(), pool.host.toString(), isDead(), this.isBorrowed().get(), getPending().get() == null ? 0 : 1, this.isBeingReplaced, isClosing(), createdTimestamp, creatingThread) :
+                String.format("Connection{channel=%s isDead=%s borrowed=%s pending=%s markedReplaced=%s closing=%s created=%s thread=%s}",
+                        getChannelId(), isDead(), this.isBorrowed().get(), getPending().get() == null ? 0 : 1, this.isBeingReplaced, isClosing(), createdTimestamp, creatingThread);
     }
 
     /**

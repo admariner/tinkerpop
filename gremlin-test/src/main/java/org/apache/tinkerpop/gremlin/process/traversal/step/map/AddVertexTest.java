@@ -46,6 +46,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeThat;
 
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
@@ -60,8 +61,6 @@ public abstract class AddVertexTest extends AbstractGremlinTest {
     public abstract Traversal<Vertex, Vertex> get_g_addVXpersonX_propertyXname_stephenX();
 
     public abstract Traversal<Vertex, Vertex> get_g_V_hasLabelXpersonX_propertyXname_nullX();
-
-    public abstract Traversal<Vertex, Vertex> get_g_addVXnullX_propertyXid_nullX();
 
     public abstract Traversal<Vertex, Vertex> get_g_addV_propertyXlabel_personX();
 
@@ -122,20 +121,6 @@ public abstract class AddVertexTest extends AbstractGremlinTest {
     @Test
     @FeatureRequirement(featureClass = Graph.Features.VertexFeatures.class, feature = Graph.Features.VertexFeatures.FEATURE_ADD_VERTICES)
     @FeatureRequirement(featureClass = Graph.Features.VertexFeatures.class, feature = Graph.Features.VertexFeatures.FEATURE_ADD_PROPERTY)
-    public void g_addVXnullX_propertyXid_nullX() {
-        final Traversal<Vertex, Vertex> traversal = get_g_addVXnullX_propertyXid_nullX();
-        printTraversalForm(traversal);
-
-        final Vertex vertex = traversal.next();
-        assertEquals(Vertex.DEFAULT_LABEL, vertex.label());
-
-        // should generate an id for the null value
-        assertNotNull(vertex.id());
-    }
-
-    @Test
-    @FeatureRequirement(featureClass = Graph.Features.VertexFeatures.class, feature = Graph.Features.VertexFeatures.FEATURE_ADD_VERTICES)
-    @FeatureRequirement(featureClass = Graph.Features.VertexFeatures.class, feature = Graph.Features.VertexFeatures.FEATURE_ADD_PROPERTY)
     public void g_addV_propertyXlabel_personX() {
         final Traversal<Vertex, Vertex> traversal = get_g_addV_propertyXlabel_personX();
         printTraversalForm(traversal);
@@ -163,9 +148,13 @@ public abstract class AddVertexTest extends AbstractGremlinTest {
     @LoadGraphWith(MODERN)
     @FeatureRequirement(featureClass = Graph.Features.VertexFeatures.class, feature = Graph.Features.VertexFeatures.FEATURE_NULL_PROPERTY_VALUES, supported = false)
     public void g_V_hasLabelXpersonX_propertyXname_nullX() {
+        // when cardinality is single then the vertex property is removed, otherwise it is ignored as the graph
+        // can't store it and it wouldn't be clear which property in the list/set to remove
+        final boolean present = graph.features().vertex().getCardinality("name") == VertexProperty.Cardinality.single;
+
         final Traversal<Vertex, Vertex> traversal = get_g_V_hasLabelXpersonX_propertyXname_nullX();
         printTraversalForm(traversal);
-        traversal.forEachRemaining(v -> assertThat(v.properties("name").hasNext(), is(false)));
+        traversal.forEachRemaining(v -> assertThat(v.properties("name").hasNext(), is(!present)));
     }
 
     @Test
@@ -409,12 +398,6 @@ public abstract class AddVertexTest extends AbstractGremlinTest {
         @Override
         public Traversal<Vertex, Map<Object, Object>> get_g_V_asXaX_hasXname_markoX_outXcreatedX_asXbX_addVXselectXaX_labelX_propertyXtest_selectXbX_labelX_valueMap_withXtokensX() {
             return g.V().as("a").has("name", "marko").out("created").as("b").addV(select("a").label()).property("test", select("b").label()).valueMap().with(WithOptions.tokens);
-        }
-
-        @Override
-        public Traversal<Vertex, Vertex> get_g_addVXnullX_propertyXid_nullX() {
-            // testing Traversal but should work the same for String
-            return g.addV((Traversal.Admin<?, String>) null).property(T.id, null);
         }
 
         @Override

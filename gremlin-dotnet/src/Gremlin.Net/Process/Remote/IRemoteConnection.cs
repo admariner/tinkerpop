@@ -21,6 +21,7 @@
 
 #endregion
 
+using System.Threading;
 using System.Threading.Tasks;
 using Gremlin.Net.Process.Traversal;
 
@@ -36,7 +37,24 @@ namespace Gremlin.Net.Process.Remote
         ///     <see cref="ITraversal" />.
         /// </summary>
         /// <param name="bytecode">The <see cref="Bytecode" /> to send.</param>
+        /// <param name="cancellationToken">The token to cancel the operation. The default value is None.</param>
         /// <returns>The <see cref="ITraversal" /> with the results and optional side-effects.</returns>
-        Task<ITraversal<S, E>> SubmitAsync<S, E>(Bytecode bytecode);
+        Task<ITraversal<TStart, TEnd>> SubmitAsync<TStart, TEnd>(Bytecode bytecode, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///     Creates a <see cref="RemoteTransaction" /> in the context of a <see cref="GraphTraversalSource" /> designed to work with
+        ///     remote semantics.
+        /// </summary>
+        /// <param name="graphTraversalSource">
+        ///     The <see cref="GraphTraversalSource" /> providing the context for the
+        ///     <see cref="RemoteTransaction" />.
+        /// </param>
+        /// <returns>The created <see cref="RemoteTransaction" />.</returns>
+        RemoteTransaction Tx(GraphTraversalSource graphTraversalSource);
+        
+        /// <summary>
+        ///     Determines if the connection is bound to a session.
+        /// </summary>
+        bool IsSessionBound { get; }
     }
 }

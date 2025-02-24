@@ -90,15 +90,20 @@ public class TraversalPredicateVisitorTest {
                 {"TextP.endingWith('hakuna')", TextP.endingWith("hakuna")},
                 {"TextP.notEndingWith('hakuna')", TextP.notEndingWith("hakuna")},
                 {"TextP.notStartingWith('hakuna')", TextP.notStartingWith("hakuna")},
+                {"TextP.regex('^h')", TextP.regex("^h")},
+                {"TextP.regex('~h')", TextP.regex("~h")},
+                {"TextP.regex('(?i)gfg')", TextP.regex("(?i)gfg")},
+                {"TextP.notRegex('^h')", TextP.notRegex("^h")},
+                {"TextP.regex('^h').negate()", TextP.regex("^h").negate()},
         });
     }
 
     @Test
-    public void testPredicate() {
+    public void shouldParsePredicate() {
         final GremlinLexer lexer = new GremlinLexer(CharStreams.fromString(script));
         final GremlinParser parser = new GremlinParser(new CommonTokenStream(lexer));
         final GremlinParser.TraversalPredicateContext ctx = parser.traversalPredicate();
-        final P predicate = TraversalPredicateVisitor.getInstance().visitTraversalPredicate(ctx);
+        final P predicate = new TraversalPredicateVisitor(new GremlinAntlrToJava()).visitTraversalPredicate(ctx);
 
         Assert.assertEquals(expected, predicate);
     }

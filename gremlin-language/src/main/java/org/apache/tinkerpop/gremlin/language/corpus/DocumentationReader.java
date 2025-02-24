@@ -22,7 +22,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -37,9 +41,9 @@ public class DocumentationReader {
      */
     private static final Set<String> throwAway = new HashSet<>(Arrays.asList("g.inject(g.withComputer().V().shortestPath().with(ShortestPath.distance, 'weight').with(ShortestPath.includeEdges, true).with(ShortestPath.maxDistance, 1).toList().toArray()).map(unfold().values('name','weight').fold())"));
 
-    public static Set<String> parse(final String projectRoot) throws IOException {
+    public static Set<String> parse(final String documentationDir) throws IOException {
         final Set<String> gremlins = new LinkedHashSet<>();
-        Files.find(Paths.get(projectRoot, "docs", "src"),
+        Files.find(Paths.get(documentationDir),
                 Integer.MAX_VALUE,
                 (filePath, fileAttr) -> fileAttr.isRegularFile() && (filePath.toString().endsWith("traversal.asciidoc") || filePath.toString().contains("recipes"))).
                 sorted().
@@ -51,7 +55,7 @@ public class DocumentationReader {
                         final List<String> lines = Files.readAllLines(f, StandardCharsets.UTF_8);
                         for (String line : lines) {
                             // trim and remove callouts
-                            String cleanLine = line.replaceAll("<\\d>", "").trim();
+                            String cleanLine = line.replaceAll("<\\d*>", "").trim();
 
                             // remove line comments
                             int pos = cleanLine.indexOf("//");
@@ -92,7 +96,7 @@ public class DocumentationReader {
      * Variables can't be parsed by the grammar so they must be replaced with something concrete.
      */
     private static String replaceVariables(final String gremlin) {
-        // convert lambda vars to closures and they will be ignored by the test suite
+        // convert lambda vars to closures as they will be ignored by the test suite
         return gremlin.replace("relations", "\"relations\"").
                 replace("places.size()", "6").
                 replace("places", "\"places\"").
@@ -105,13 +109,16 @@ public class DocumentationReader {
                 replace("vMarko", "\"marko\"").
                 replace("vPeter", "\"peter\"").
                 replace("vStephen", "\"stephen\"").
+                replace("maps", "[:]").
+                replace("v1", "new Vertex(1,\"vertex\")").
+                replace("v2", "new Vertex(2,\"vertex\")").
                 replace("input.head()", "\"head\"").
                 replace("input.tail().size()", "6").
                 replace("input.tail()", "\"tail\"").
                 replace("System.out.&println", "{it}").
                 replace("persons", "\"persons\"").
                 replace("marko.value('age')", "11").
-                replace("seedStrategy", "new SeedStrategy(99999)").
+                replace("seedStrategy", "new SeedStrategy(seed: 99999)").
                 replace(".getClass()", "").
                 replace("result.toArray()", "4").
                 replace("vA.value('amount')", "0.0").

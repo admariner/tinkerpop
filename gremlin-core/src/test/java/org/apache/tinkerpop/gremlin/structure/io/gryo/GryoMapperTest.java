@@ -19,7 +19,9 @@
 package org.apache.tinkerpop.gremlin.structure.io.gryo;
 
 import org.apache.tinkerpop.gremlin.process.remote.traversal.DefaultRemoteTraverser;
-import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
+import org.apache.tinkerpop.gremlin.process.traversal.GremlinLang;
+import org.apache.tinkerpop.gremlin.process.traversal.Merge;
+import org.apache.tinkerpop.gremlin.process.traversal.TextP;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalExplanation;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.io.IoX;
@@ -348,14 +350,8 @@ public class GryoMapperTest {
     }
 
     @Test
-    public void shouldHandleBytecode() throws Exception {
-        final Bytecode bytecode = __().out().outV().outE().asAdmin().getBytecode();
-        assertEquals(bytecode.toString(), serializeDeserialize(bytecode, Bytecode.class).toString());
-    }
-
-    @Test
     public void shouldHandleClass() throws Exception {
-        final Class clazz = java.io.File.class;
+        final Class<?> clazz = java.io.File.class;
         assertEquals(clazz, serializeDeserialize(clazz, Class.class));
     }
 
@@ -375,6 +371,20 @@ public class GryoMapperTest {
     public void shouldHandleByteBuffer() throws Exception {
         final ByteBuffer bb = ByteBuffer.wrap("some bytes for you".getBytes());
         assertThat(Arrays.equals(bb.array(), serializeDeserialize(bb, ByteBuffer.class).array()), is(true));
+    }
+
+    @Test
+    public void shouldHandleMerge() throws Exception {
+        final Merge merge = Merge.onCreate;
+        assertEquals(merge, serializeDeserialize(merge, Merge.class));
+    }
+
+    @Test
+    public void shouldHandleTextP() throws Exception {
+        final TextP startingWith = TextP.startingWith("meh");
+        assertEquals(startingWith, serializeDeserialize(startingWith, TextP.class));
+        final TextP regex = TextP.regex("meh");
+        assertEquals(regex, serializeDeserialize(regex, TextP.class));
     }
 
     public <T> T serializeDeserialize(final Object o, final Class<T> clazz) throws Exception {
@@ -408,7 +418,7 @@ public class GryoMapperTest {
      * TinkerPop which then removes the requirement for providers to expose serializers on the client side for user
      * consumption.
      */
-    private static class CustomClassResolver extends GryoClassResolverV1d0 {
+    private static class CustomClassResolver extends GryoClassResolverV1 {
         private IoXIoRegistry.IoXToVertexSerializer ioXToVertexSerializer = new IoXIoRegistry.IoXToVertexSerializer();
         private IoYIoRegistry.IoYToHashMapSerializer ioYToHashMapSerializer = new IoYIoRegistry.IoYToHashMapSerializer();
 

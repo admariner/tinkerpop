@@ -18,32 +18,45 @@
  */
 package org.apache.tinkerpop.gremlin.process.traversal.lambda;
 
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.step.GValue;
+
 import java.util.Objects;
 
 /**
+ * A {@link Traversal} that always returns a constant value.
+ *
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
 public final class ConstantTraversal<S, E> extends AbstractLambdaTraversal<S, E> {
 
-    private final E end;
+    private final GValue<E> end;
 
     public ConstantTraversal(final E end) {
-        this.end = end;
+        this.end = null == end ? GValue.of(null, null) : GValue.of(null, end);
+    }
+
+    public ConstantTraversal(final GValue<E> end) {
+        this.end = null == end ? GValue.of(null, null) : end;
     }
 
     @Override
     public E next() {
-        return this.end;
+        return this.end.get();
+    }
+
+    public GValue<E> getEnd() {
+        return end;
     }
 
     @Override
     public String toString() {
-        return "(" + this.end.toString() + ")";
+        return "(" + Objects.toString(this.end) + ")";
     }
 
     @Override
     public int hashCode() {
-        return this.getClass().hashCode() ^ this.end.hashCode();
+        return this.getClass().hashCode() ^ Objects.hashCode(this.end);
     }
 
     @Override

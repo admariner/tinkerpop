@@ -18,6 +18,7 @@
  */
 package org.apache.tinkerpop.gremlin.structure.util;
 
+import org.apache.tinkerpop.gremlin.process.traversal.step.GValue;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Graph;
@@ -34,6 +35,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -197,7 +199,7 @@ public final class ElementHelper {
      * assure that key positions contain strings and that there are an even number of elements.
      */
     public static Map<String, Object> asMap(final Object... keyValues) {
-        return asPairs(keyValues).stream().collect(Collectors.toMap(p -> p.getValue0(), p -> p.getValue1()));
+        return asPairs(keyValues).stream().collect(Collectors.toMap(Pair::getValue0, Pair::getValue1));
     }
 
     /**
@@ -205,7 +207,7 @@ public final class ElementHelper {
      * assure that key positions contain strings and that there are an even number of elements.
      */
     public static List<Pair<String, Object>> asPairs(final Object... keyValues) {
-        final List list = Arrays.asList(keyValues);
+        final List<Object> list = Arrays.asList(keyValues);
         return IntStream.range(1, list.size())
                 .filter(i -> i % 2 != 0)
                 .mapToObj(i -> Pair.with(list.get(i - 1).toString(), list.get(i)))
@@ -338,8 +340,11 @@ public final class ElementHelper {
     public static <V> Optional<VertexProperty<V>> stageVertexProperty(final Vertex vertex,
                                                                       final VertexProperty.Cardinality cardinality,
                                                                       final String key, final V value, final Object... keyValues) {
-        if (cardinality.equals(VertexProperty.Cardinality.single))
-            vertex.properties(key).forEachRemaining(VertexProperty::remove);
+        if (cardinality.equals(VertexProperty.Cardinality.single)) {
+            final Iterator<VertexProperty<Object>> properties = vertex.properties(key);
+            if (null != properties)
+                properties.forEachRemaining(VertexProperty::remove);
+        }
         else if (cardinality.equals(VertexProperty.Cardinality.set)) {
             final Iterator<VertexProperty<V>> itty = vertex.properties(key);
             while (itty.hasNext()) {
@@ -456,7 +461,7 @@ public final class ElementHelper {
      * @return the hash code of the property
      */
     public static int hashCode(final Property property) {
-        return property.key().hashCode() + property.value().hashCode();
+        return property.key().hashCode() + Objects.hashCode(property.value());
     }
 
     /**
@@ -522,13 +527,20 @@ public final class ElementHelper {
         return propertyMap;
     }
 
+    /**
+     * Checks if a key exists within a list of provided keys. Returns {@code false} if the key is {@code null} or if
+     * the {@link Graph.Hidden}. Returns {@code true} if no {@code providedKeys} are supplied.
+     *
+     * @param key must not be {@code null}
+     */
     public static boolean keyExists(final String key, final String... providedKeys) {
+        Objects.requireNonNull(key);
         if (Graph.Hidden.isHidden(key)) return false;
-        if (0 == providedKeys.length) return true;
+        if (null == providedKeys || 0 == providedKeys.length) return true;
         if (1 == providedKeys.length) return key.equals(providedKeys[0]);
         else {
             for (final String temp : providedKeys) {
-                if (temp.equals(key))
+                if (key.equals(temp))
                     return true;
             }
             return false;
@@ -538,13 +550,16 @@ public final class ElementHelper {
     public static boolean idExists(final Object id, final Object... providedIds) {
         if (0 == providedIds.length) return true;
 
+        //unbox any GValues which may be present in providedIds
+        Object[] idValues = GValue.resolveToValues(GValue.ensureGValues(providedIds));
+
         // it is OK to evaluate equality of ids via toString() now given that the toString() the test suite
         // enforces the value of id.()toString() to be a first class representation of the identifier
-        if (1 == providedIds.length) {
-            return id.toString().equals(providedIds[0].toString());
+        if (1 == idValues.length) {
+            return id != null && idValues[0] != null && id.toString().equals(idValues[0].toString());
         } else {
-            for (final Object temp : providedIds) {
-                if (temp.toString().equals(id.toString()))
+            for (final Object temp : idValues) {
+                if (id != null && temp != null && temp.toString().equals(id.toString()))
                     return true;
             }
             return false;

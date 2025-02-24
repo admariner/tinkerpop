@@ -20,6 +20,8 @@ package org.apache.tinkerpop.gremlin.features;
 
 import io.cucumber.java.Scenario;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Element;
+import org.apache.tinkerpop.gremlin.structure.T;
 
 import static org.apache.tinkerpop.gremlin.LoadGraphWith.GraphData;
 
@@ -41,7 +43,7 @@ public interface World {
     /**
      * Called before each individual test is executed which provides an opportunity to do some setup. For example,
      * if there is a specific test that can't be supported it can be ignored by checking for the name with
-     * {@code scenario.getName()} and then throwing an {@code AssumptionViolationException}.
+     * {@code scenario.getName()} and then throwing an {@code AssumptionViolatedException}.
      * @param scenario
      */
     public default void beforeEachScenario(final Scenario scenario) {
@@ -65,5 +67,40 @@ public interface World {
      */
     public default String changePathToDataFile(final String pathToFileFromGremlin) {
         return pathToFileFromGremlin;
+    }
+
+    /**
+     * Converts a graph element's {@link T#id} to a form that can be used in a script parsed by the grammar. For
+     * example, if the graph has numeric identifiers the default implementation of {@code id().toString()} would
+     * return "0" which would be interpreted by the grammar as a number when parsed in {@code g.V(0)}. However, a
+     * graph that used {@code UUID} for an identifier would have a representation of
+     * "1c535978-dc36-4cd2-ab82-95a98a847757" which could not be parsed by the grammar directly as
+     * {@code g.V(1c535978-dc36-4cd2-ab82-95a98a847757)} and would need to be prefixed and suffixed with double or
+     * single quotes. Therefore, this method would be overridden for that graph to perform that function.
+     */
+    public default String convertIdToScript(final Object id, final Class<? extends Element> type) {
+        return id.toString();
+    }
+
+    /**
+     * Determines if the test should use parameters literally or treat them as variables to be applied to the script.
+     * By default, they are treated literally.
+     */
+    public default boolean useParametersLiterally() {
+        return true;
+    }
+
+
+    /**
+     * Allows for some flexibility in error message assertion, where the provider can handle assertions themselves.
+     * Providers should use standard assertion logic as they would with tests. Note that if this method is called, then
+     * the exception has happened and that the only point of concern for assertion is the message. Providers can not use
+     * this method as a way to avoid throwing an exception in the first place. TinkerPop tries to not be too
+     * prescriptive with error messages and while we recommend providers conform to our messages it is not required.
+     * @return {@code true} if the assertion was handled and {@code false} if default handling should be engaged
+     */
+    public default boolean handleErrorMessageAssertion(final String comparison, final String expectedMessage,
+                                                       final Throwable actualException) {
+        return false;
     }
 }

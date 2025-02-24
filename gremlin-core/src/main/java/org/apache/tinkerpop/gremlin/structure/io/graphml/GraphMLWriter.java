@@ -32,7 +32,7 @@ import javax.xml.XMLConstants;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -432,7 +432,8 @@ public final class GraphMLWriter implements GraphWriter {
         final VertexProperty<Object> currentValue = properties.next();
 
         if (properties.hasNext())
-            throw new IllegalStateException("Multiple properties exists for the provided key: [%s] and multi-properties are not directly supported by GraphML format");
+            throw new IllegalStateException(String.format("Multiple properties exist for the provided key: [%s]. " +
+                "Multi-properties are not directly supported by GraphML format", key));
         return currentValue;
     }
 

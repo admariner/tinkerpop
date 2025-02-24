@@ -21,7 +21,15 @@ package org.apache.tinkerpop.gremlin.driver.exception;
 public class NoHostAvailableException extends RuntimeException {
 
     public NoHostAvailableException() {
-        super("All hosts are considered unavailable due to previous exceptions. Check the error log to find the actual reason.");
+        this("All hosts are considered unavailable due to previous exceptions. Check the error log to find the actual reason.");
+    }
+
+    public NoHostAvailableException(final String message) {
+        super(message);
+    }
+
+    public NoHostAvailableException(final Throwable ex) {
+        super(ex);
     }
 
     @Override

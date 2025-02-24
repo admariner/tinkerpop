@@ -21,6 +21,7 @@ package org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.lambda.AbstractLambdaTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Parameterizing;
 import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
@@ -38,6 +39,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.map.EdgeOtherVertexSt
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.EdgeVertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.LambdaMapStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeEdgeStep;
+import org.apache.tinkerpop.gremlin.process.traversal.step.map.MergeVertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertiesStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.PropertyMapStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.VertexStep;
@@ -65,6 +68,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -114,26 +118,53 @@ public final class PartitionStrategy extends AbstractTraversalStrategy<Traversal
 
     @Override
     public void apply(final Traversal.Admin<?, ?> traversal) {
-        final Graph graph = traversal.getGraph().orElseThrow(() -> new IllegalStateException("PartitionStrategy does not work with anonymous Traversals"));
-        final Graph.Features.VertexFeatures vertexFeatures = graph.features().vertex();
-        final boolean supportsMetaProperties = vertexFeatures.supportsMetaProperties();
-        if (includeMetaProperties && !supportsMetaProperties)
-            throw new IllegalStateException("PartitionStrategy is configured to include meta-properties but the Graph does not support them");
+        // nothing partitioning can do will alter the behavior of an AbstractLambdaTraversal implementation unless
+        // it has a bypass in which case the strategy will operate on that
+        if (traversal instanceof AbstractLambdaTraversal && null == ((AbstractLambdaTraversal<?, ?>) traversal).getBypassTraversal())
+            return;
+
+        // if there are vertexFeatures assigned then it means that includeMetaProperties is enabled and the graph
+        // can support their usage. the only reason the VertexFeatures are needed is for cardinality checks for
+        // writes.
+        final Optional<Graph.Features.VertexFeatures> vertexFeatures;
+        if (includeMetaProperties) {
+            final Graph graph = traversal.getGraph().orElseThrow(
+                    () -> new IllegalStateException("PartitionStrategy does not work with anonymous Traversals when includeMetaProperties is enabled"));
+            final Graph.Features.VertexFeatures vf = graph.features().vertex();
+            final boolean supportsMetaProperties = vf.supportsMetaProperties();
+            if (!supportsMetaProperties)
+                throw new IllegalStateException("PartitionStrategy is configured to include meta-properties but the Graph does not support them");
+            vertexFeatures = Optional.of(vf);
+        } else {
+            vertexFeatures = Optional.empty();
+        }
 
         // no need to add has after mutating steps because we want to make it so that the write partition can
         // be independent of the read partition.  in other words, i don't need to be able to read from a partition
-        // in order to write to it.
+        // in order to write to it. Seems like ElementStep isn't necessary here? a Property can't be loaded that
+        // isn't within the partition so element() could only ever traverse back to something within the partition.
         final List<Step> stepsToInsertHasAfter = new ArrayList<>();
         stepsToInsertHasAfter.addAll(TraversalHelper.getStepsOfAssignableClass(GraphStep.class, traversal));
         stepsToInsertHasAfter.addAll(TraversalHelper.getStepsOfAssignableClass(VertexStep.class, traversal));
         stepsToInsertHasAfter.addAll(TraversalHelper.getStepsOfAssignableClass(EdgeOtherVertexStep.class, traversal));
         stepsToInsertHasAfter.addAll(TraversalHelper.getStepsOfAssignableClass(EdgeVertexStep.class, traversal));
 
-        // all steps that return a vertex need to have has(partitionKey,within,partitionValues) injected after it
-        stepsToInsertHasAfter.forEach(step -> TraversalHelper.insertAfterStep(
-                new HasStep(traversal, new HasContainer(partitionKey, P.within(new ArrayList<>(readPartitions)))), step, traversal));
+        // all steps that return a vertex need to have has(partitionKey,within,partitionValues) injected after it.
+        // attempt to put the partition filter at the end of other has() following that step so that the order of
+        // the has() is maintained on the chance that order up to that point is somehow intentional. this seems
+        // only relevant to Vertex/Edge steps and not properties where this order would seemingly have less
+        // significance to read performance
+        stepsToInsertHasAfter.forEach(step -> {
+            // find the last has() following the insert step
+            Step insertAfter = step;
+            while (insertAfter.getNextStep() instanceof HasStep) {
+                insertAfter = insertAfter.getNextStep();
+            }
+            TraversalHelper.insertAfterStep(
+                    new HasStep(traversal, new HasContainer(partitionKey, P.within(new ArrayList<>(readPartitions)))), insertAfter, traversal);
+        });
 
-        if (includeMetaProperties) {
+        if (vertexFeatures.isPresent()) {
             final List<PropertiesStep> propertiesSteps = TraversalHelper.getStepsOfAssignableClass(PropertiesStep.class, traversal);
             propertiesSteps.forEach(step -> {
                 // check length first because keyExists will return true otherwise
@@ -197,9 +228,10 @@ public final class PartitionStrategy extends AbstractTraversalStrategy<Traversal
         }
 
         final List<Step> stepsToInsertPropertyMutations = traversal.getSteps().stream().filter(step ->
+                step instanceof MergeVertexStep || step instanceof MergeEdgeStep ||
                 step instanceof AddEdgeStep || step instanceof AddVertexStep ||
-                step instanceof AddEdgeStartStep || step instanceof AddVertexStartStep ||
-                (includeMetaProperties && step instanceof AddPropertyStep)
+                        step instanceof AddEdgeStartStep || step instanceof AddVertexStartStep ||
+                        (includeMetaProperties && step instanceof AddPropertyStep)
         ).collect(Collectors.toList());
 
         stepsToInsertPropertyMutations.forEach(step -> {
@@ -209,7 +241,7 @@ public final class PartitionStrategy extends AbstractTraversalStrategy<Traversal
             // VertexProperty
             ((Mutating) step).configure(partitionKey, writePartition);
 
-            if (includeMetaProperties) {
+            if (vertexFeatures.isPresent()) {
                 // GraphTraversal folds g.addV().property('k','v') to just AddVertexStep/AddVertexStartStep so this
                 // has to be exploded back to g.addV().property(cardinality, 'k','v','partition','A')
                 if (step instanceof AddVertexStartStep || step instanceof AddVertexStep) {
@@ -220,7 +252,7 @@ public final class PartitionStrategy extends AbstractTraversalStrategy<Traversal
                         // need to filter out T based keys
                         if (k instanceof String) {
                             final List<Step> addPropertyStepsToAppend = new ArrayList<>(v.size());
-                            final VertexProperty.Cardinality cardinality = vertexFeatures.getCardinality((String) k);
+                            final VertexProperty.Cardinality cardinality = vertexFeatures.get().getCardinality((String) k);
                             v.forEach(o -> {
                                 final AddPropertyStep addPropertyStep = new AddPropertyStep(traversal, cardinality, k, o);
                                 addPropertyStep.configure(partitionKey, writePartition);

@@ -21,7 +21,6 @@
 
 #endregion
 
-using Gremlin.Net.Driver;
 using Gremlin.Net.Driver.Remote;
 using Gremlin.Net.Process.Traversal;
 // tag::traversalSourceUsing[]
@@ -35,13 +34,13 @@ namespace Gremlin.Net.IntegrationTest.Docs.Reference
     public class IntroTests
     {
         private readonly GraphTraversalSource g = Traversal()
-            .WithRemote(new RemoteConnectionFactory().CreateRemoteConnection());
+            .With(new RemoteConnectionFactory().CreateRemoteConnection());
 
         [Fact(Skip="No Server under localhost")]
         public void TraversalSourceCreationTest()
         {
 // tag::traversalSourceCreation[]
-var g = Traversal().WithRemote(new DriverRemoteConnection("localhost", 8182));
+var g = Traversal().With(new DriverRemoteConnection("localhost", 8182));
 // end::traversalSourceCreation[]
         }
         
@@ -63,7 +62,7 @@ var marko = g.V().Has("person", "name", "marko").Next();
 var peopleMarkoKnows = g.V().Has("person", "name", "marko").Out("knows").ToList();
 // end::basicGremlinMarkoKnows[]
 
-            Assert.Equal("person", marko.Label);
+            Assert.Equal("person", marko!.Label);
             Assert.Equal(2, peopleMarkoKnows.Count);
         }
     }

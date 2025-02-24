@@ -1,6 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AssemblyOriginatorKeyFile>../../build/tinkerpop.snk</AssemblyOriginatorKeyFile>
+    <SignAssembly>true</SignAssembly>
+    <PublicSign Condition="'$(OS)' != 'Windows_NT'">true</PublicSign>
   </PropertyGroup>
   <ItemGroup>
     <None Update="appsettings.json">
@@ -11,12 +15,14 @@
     <ProjectReference Include="..\..\src\Gremlin.Net\Gremlin.Net.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="gherkin" Version="22.0.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.11.0" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3" />
-    <PackageReference Include="xunit" Version="2.4.1" />
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="5.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="5.0.0" />
+    <PackageReference Include="gherkin" Version="30.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NSubstitute" Version="5.1.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.1" />
+    <PackageReference Include="YamlDotNet" Version="12.2.0" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82a7f48d-3b50-4b1e-b82e-3ada8210c358}" />

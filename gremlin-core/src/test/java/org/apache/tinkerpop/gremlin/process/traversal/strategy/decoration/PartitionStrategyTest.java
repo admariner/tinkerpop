@@ -19,17 +19,17 @@
 package org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration;
 
 import org.apache.tinkerpop.gremlin.process.traversal.Contains;
-import org.apache.tinkerpop.gremlin.process.traversal.Translator;
+import org.apache.tinkerpop.gremlin.process.traversal.Step;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.DefaultGraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.step.GValue;
 import org.apache.tinkerpop.gremlin.process.traversal.step.filter.HasStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.AddEdgeStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.AddVertexStartStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.AddVertexStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
-import org.apache.tinkerpop.gremlin.process.traversal.translator.GroovyTranslator;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.Element;
@@ -46,11 +46,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.IsCollectionContaining.hasItem;
+import static org.hamcrest.core.IsInstanceOf.instanceOf;
+import static org.hamcrest.core.IsIterableContaining.hasItem;
+import static org.hamcrest.core.IsNot.not;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -62,7 +64,6 @@ public class PartitionStrategyTest {
 
     @RunWith(Parameterized.class)
     public static class PartitionStrategyTraverseTest {
-        private static final Translator.ScriptTranslator translator = GroovyTranslator.of("__");
 
         @Parameterized.Parameters(name = "{0}")
         public static Iterable<Object[]> data() {
@@ -87,7 +88,13 @@ public class PartitionStrategyTest {
                     {create().in().out().addE("test").to("x"), 2, true},
                     {create().out().out().out(), 3, false},
                     {create().in().out().in(), 3, false},
-                    {create().inE().outV().inE().outV(), 4, false}});
+                    {create().inE().outV().inE().outV(), 4, false},
+                    {create().bothV().hasLabel("person"), 2, false},
+                    {create().inV().hasLabel("person").has("name"), 2, false},  // just 2 coz has("name") is TraversalFilterStep and not a has() that goes in a container :/
+                    {create().outV().hasLabel("person").out(), 3, false},
+                    {create().outV().hasLabel("person").out().hasLabel("software"), 4, false},
+                    {create().in().hasLabel("person").out().outE().hasLabel("knows").groupCount(), 5, false},
+                    {create().out().inE().otherV().hasLabel("person"), 4, false}});
         }
 
         @Parameterized.Parameter(value = 0)
@@ -101,7 +108,7 @@ public class PartitionStrategyTest {
 
         @Test
         public void shouldIncludeAdditionalHasStepsAndAppendPartitionOnMutatingSteps() {
-            final String repr = translator.translate(traversal.getBytecode()).getScript();
+            final String repr = traversal.getGremlinLang().getGremlin();
             final PartitionStrategy strategy = PartitionStrategy.build()
                     .partitionKey("p").writePartition("a").readPartitions("a").create();
 
@@ -111,7 +118,7 @@ public class PartitionStrategyTest {
                     final List<AddEdgeStep> addEdgeSteps = TraversalHelper.getStepsOfAssignableClass(AddEdgeStep.class, traversal.asAdmin());
                     assertEquals(1, addEdgeSteps.size());
                     addEdgeSteps.forEach(s -> {
-                        assertEquals(repr, "test", s.getParameters().get(T.label, () -> Edge.DEFAULT_LABEL).get(0));
+                        assertEquals(repr, GValue.of(null, "test"), s.getParameters().get(T.label, () -> Edge.DEFAULT_LABEL).get(0));
                         assertEquals(repr, "a", s.getParameters().get("p", null).get(0));
                     });
                 } else if (TraversalHelper.hasStepOfAssignableClass(AddVertexStep.class, traversal.asAdmin())) {
@@ -137,9 +144,28 @@ public class PartitionStrategyTest {
             steps.forEach(s -> {
                 assertEquals(repr, 1, s.getHasContainers().size());
                 final HasContainer hasContainer = (HasContainer) s.getHasContainers().get(0);
-                assertEquals(repr, "p", hasContainer.getKey());
-                assertEquals(repr, keySet, hasContainer.getValue());
-                assertEquals(repr, Contains.within, hasContainer.getBiPredicate());
+
+                // if it is a partition has() then ensure it is not followed by has(). if it is something else, let it
+                // be followed by partition has()
+                if (hasContainer.getKey().equals("p")) {
+                    assertEquals(repr, keySet, hasContainer.getValue());
+                    assertEquals(repr, Contains.within, hasContainer.getBiPredicate());
+
+                    // no has() after the partition filter
+                    assertThat(s.getNextStep(), not(instanceOf(HasStep.class)));
+                } else {
+                    // last has() in the sequence should be the partition has()
+                    Step insertAfter = s;
+                    while (insertAfter.getNextStep() instanceof HasStep) {
+                        insertAfter = insertAfter.getNextStep();
+                    }
+
+                    final HasContainer insertAfterHasContainer = (HasContainer) ((HasStep) insertAfter).getHasContainers().get(0);
+
+                    assertEquals(repr, "p", insertAfterHasContainer.getKey());
+                    assertEquals(repr, keySet, insertAfterHasContainer.getValue());
+                    assertEquals(repr, Contains.within, insertAfterHasContainer.getBiPredicate());
+                }
             });
         }
 

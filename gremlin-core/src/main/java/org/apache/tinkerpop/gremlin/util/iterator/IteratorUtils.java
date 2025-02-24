@@ -19,6 +19,7 @@
 package org.apache.tinkerpop.gremlin.util.iterator;
 
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
+import org.apache.tinkerpop.gremlin.structure.util.CloseableIterator;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,6 +30,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -48,20 +50,21 @@ public final class IteratorUtils {
     private IteratorUtils() {
     }
 
-    public static final <S> Iterator<S> of(final S a) {
+    public static <S> Iterator<S> of(final S a) {
         return new SingleIterator<>(a);
     }
 
-    public static final <S> Iterator<S> of(final S a, S b) {
+    public static <S> Iterator<S> of(final S a, S b) {
         return new DoubleIterator<>(a, b);
     }
 
     ///////////////
 
-    public static final <S extends Collection<T>, T> S fill(final Iterator<T> iterator, final S collection) {
+    public static <S extends Collection<T>, T> S fill(final Iterator<T> iterator, final S collection) {
         while (iterator.hasNext()) {
             collection.add(iterator.next());
         }
+        CloseableIterator.closeIterator(iterator);
         return collection;
     }
 
@@ -69,11 +72,13 @@ public final class IteratorUtils {
         while (iterator.hasNext()) {
             iterator.next();
         }
+        CloseableIterator.closeIterator(iterator);
     }
 
-    public static final long count(final Iterator iterator) {
+    public static long count(final Iterator iterator) {
         long ix = 0;
         for (; iterator.hasNext(); ++ix) iterator.next();
+        CloseableIterator.closeIterator(iterator);
         return ix;
     }
 
@@ -96,7 +101,7 @@ public final class IteratorUtils {
     }
 
     public static <S> Iterator<S> limit(final Iterator<S> iterator, final int limit) {
-        return new Iterator<S>() {
+        return new CloseableIterator<S>() {
             private int count = 0;
 
             @Override
@@ -115,39 +120,64 @@ public final class IteratorUtils {
                     throw FastNoSuchElementException.instance();
                 return iterator.next();
             }
+
+            @Override
+            public void close() {
+                CloseableIterator.closeIterator(iterator);
+            }
         };
     }
 
     ///////////////////
 
     public static <T> boolean allMatch(final Iterator<T> iterator, final Predicate<T> predicate) {
-        while (iterator.hasNext()) {
-            if (!predicate.test(iterator.next())) {
-                return false;
+        try {
+            while (iterator.hasNext()) {
+                if (!predicate.test(iterator.next())) {
+                    return false;
+                }
             }
+            return true;
+        } finally {
+            CloseableIterator.closeIterator(iterator);
         }
-
-        return true;
     }
 
     public static <T> boolean anyMatch(final Iterator<T> iterator, final Predicate<T> predicate) {
-        while (iterator.hasNext()) {
-            if (predicate.test(iterator.next())) {
-                return true;
+        try {
+            while (iterator.hasNext()) {
+                if (predicate.test(iterator.next())) {
+                    return true;
+                }
             }
+            return false;
+        } finally {
+            CloseableIterator.closeIterator(iterator);
         }
-
-        return false;
     }
 
     public static <T> boolean noneMatch(final Iterator<T> iterator, final Predicate<T> predicate) {
-        while (iterator.hasNext()) {
-            if (predicate.test(iterator.next())) {
-                return false;
+        try {
+            while (iterator.hasNext()) {
+                if (predicate.test(iterator.next())) {
+                    return false;
+                }
             }
+            return true;
+        } finally {
+            CloseableIterator.closeIterator(iterator);
         }
+    }
 
-        return true;
+    public static <T> Optional<T> findFirst(final Iterator<T> iterator) {
+        try {
+            if (iterator.hasNext()) {
+                return Optional.ofNullable(iterator.next());
+            }
+            return Optional.empty();
+        } finally {
+            CloseableIterator.closeIterator(iterator);
+        }
     }
 
     ///////////////////
@@ -162,6 +192,7 @@ public final class IteratorUtils {
             final S obj = iterator.next();
             map.put(key.apply(obj), value.apply(obj));
         }
+        CloseableIterator.closeIterator(iterator);
         return map;
     }
 
@@ -171,6 +202,7 @@ public final class IteratorUtils {
             final S obj = iterator.next();
             map.computeIfAbsent(groupBy.apply(obj), k -> new ArrayList<>()).add(obj);
         }
+        CloseableIterator.closeIterator(iterator);
         return map;
     }
 
@@ -179,7 +211,7 @@ public final class IteratorUtils {
         while (iterator.hasNext()) {
             result = accumulator.apply(result, iterator.next());
         }
-
+        CloseableIterator.closeIterator(iterator);
         return result;
     }
 
@@ -192,7 +224,7 @@ public final class IteratorUtils {
         while (iterator.hasNext()) {
             result = accumulator.apply(result, iterator.next());
         }
-
+        CloseableIterator.closeIterator(iterator);
         return result;
     }
 
@@ -202,8 +234,8 @@ public final class IteratorUtils {
 
     ///////////////
 
-    public static final <S> Iterator<S> consume(final Iterator<S> iterator, final Consumer<S> consumer) {
-        return new Iterator<S>() {
+    public static <S> Iterator<S> consume(final Iterator<S> iterator, final Consumer<S> consumer) {
+        return new CloseableIterator<S>() {
             @Override
             public boolean hasNext() {
                 return iterator.hasNext();
@@ -220,18 +252,23 @@ public final class IteratorUtils {
                 consumer.accept(s);
                 return s;
             }
+
+            @Override
+            public void close() {
+                CloseableIterator.closeIterator(iterator);
+            }
         };
     }
 
-    public static final <S> Iterable<S> consume(final Iterable<S> iterable, final Consumer<S> consumer) {
+    public static <S> Iterable<S> consume(final Iterable<S> iterable, final Consumer<S> consumer) {
         return () -> IteratorUtils.consume(iterable.iterator(), consumer);
     }
 
 
     ///////////////
 
-    public static final <S, E> Iterator<E> map(final Iterator<S> iterator, final Function<S, E> function) {
-        return new Iterator<E>() {
+    public static <S, E> Iterator<E> map(final Iterator<S> iterator, final Function<S, E> function) {
+        return new CloseableIterator<E>() {
             @Override
             public boolean hasNext() {
                 return iterator.hasNext();
@@ -246,19 +283,58 @@ public final class IteratorUtils {
             public E next() {
                 return function.apply(iterator.next());
             }
+
+            @Override
+            public void close() {
+                CloseableIterator.closeIterator(iterator);
+            }
         };
     }
 
-    public static final <S, E> Iterable<E> map(final Iterable<S> iterable, final Function<S, E> function) {
+    public static <S, E> Iterable<E> map(final Iterable<S> iterable, final Function<S, E> function) {
         return () -> IteratorUtils.map(iterable.iterator(), function);
+    }
+
+    public static <S, E> Iterator<E> cast(final Iterator<S> iterator) {
+        return map(iterator, s -> (E) s);
     }
 
     ///////////////
 
-    public static final <S> Iterator<S> filter(final Iterator<S> iterator, final Predicate<S> predicate) {
+    public static <S> Iterator<S> peek(final Iterator<S> iterator, final Consumer<S> function) {
+        return new CloseableIterator<S>() {
+            @Override
+            public boolean hasNext() {
+                return iterator.hasNext();
+            }
 
+            @Override
+            public void remove() {
+                iterator.remove();
+            }
 
-        return new Iterator<S>() {
+            @Override
+            public S next() {
+                final S next = iterator.next();
+                function.accept(next);
+                return next;
+            }
+
+            @Override
+            public void close() {
+                CloseableIterator.closeIterator(iterator);
+            }
+        };
+    }
+
+    public static <S> Iterable<S> peek(final Iterable<S> iterable, final Consumer<S> function) {
+        return () -> IteratorUtils.peek(iterable.iterator(), function);
+    }
+
+    ///////////////
+
+    public static <S> Iterator<S> filter(final Iterator<S> iterator, final Predicate<S> predicate) {
+        return new CloseableIterator<S>() {
             S nextResult = null;
 
             @Override
@@ -293,7 +369,12 @@ public final class IteratorUtils {
                 }
             }
 
-            private final void advance() {
+            @Override
+            public void close() {
+                CloseableIterator.closeIterator(iterator);
+            }
+
+            private void advance() {
                 this.nextResult = null;
                 while (iterator.hasNext()) {
                     final S s = iterator.next();
@@ -306,14 +387,14 @@ public final class IteratorUtils {
         };
     }
 
-    public static final <S> Iterable<S> filter(final Iterable<S> iterable, final Predicate<S> predicate) {
+    public static <S> Iterable<S> filter(final Iterable<S> iterable, final Predicate<S> predicate) {
         return () -> IteratorUtils.filter(iterable.iterator(), predicate);
     }
 
     ///////////////////
 
-    public static final <S, E> Iterator<E> flatMap(final Iterator<S> iterator, final Function<S, Iterator<E>> function) {
-        return new Iterator<E>() {
+    public static <S, E> Iterator<E> flatMap(final Iterator<S> iterator, final Function<S, Iterator<E>> function) {
+        return new CloseableIterator<E>() {
 
             private Iterator<E> currentIterator = Collections.emptyIterator();
 
@@ -343,13 +424,18 @@ public final class IteratorUtils {
                 else
                     throw FastNoSuchElementException.instance();
             }
+
+            @Override
+            public void close() {
+                CloseableIterator.closeIterator(iterator);
+            }
         };
     }
 
 
     ///////////////////
 
-    public static final <S> Iterator<S> concat(final Iterator<S>... iterators) {
+    public static <S> Iterator<S> concat(final Iterator<S>... iterators) {
         final MultiIterator<S> iterator = new MultiIterator<>();
         for (final Iterator<S> itty : iterators) {
             iterator.addIterator(itty);
@@ -367,6 +453,8 @@ public final class IteratorUtils {
             itty = (Iterator) o;
         else if (o instanceof Object[])
             itty = new ArrayIterator<>((Object[]) o);
+        else if (o != null && o.getClass().isArray()) // handle for primitive array
+            itty = new org.apache.commons.collections4.iterators.ArrayIterator(o);
         else if (o instanceof Stream)
             itty = ((Stream) o).iterator();
         else if (o instanceof Map)
@@ -382,11 +470,16 @@ public final class IteratorUtils {
         return list(asIterator(o));
     }
 
+    public static Set asSet(final Object o) {
+        return set(asIterator(o));
+    }
+
     /**
      * Construct a {@link Stream} from an {@link Iterator}.
      */
     public static <T> Stream<T> stream(final Iterator<T> iterator) {
-        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, Spliterator.IMMUTABLE | Spliterator.SIZED), false);
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, Spliterator.IMMUTABLE | Spliterator.SIZED), false)
+                .onClose(() -> CloseableIterator.closeIterator(iterator));
     }
 
     public static <T> Stream<T> stream(final Iterable<T> iterable) {
@@ -394,7 +487,7 @@ public final class IteratorUtils {
     }
 
     public static <T> Iterator<T> noRemove(final Iterator<T> iterator) {
-        return new Iterator<T>() {
+        return new CloseableIterator<T>() {
             @Override
             public boolean hasNext() {
                 return iterator.hasNext();
@@ -409,11 +502,16 @@ public final class IteratorUtils {
             public T next() {
                 return iterator.next();
             }
+
+            @Override
+            public void close() {
+                CloseableIterator.closeIterator(iterator);
+            }
         };
     }
 
     public static <T> Iterator<T> removeOnNext(final Iterator<T> iterator) {
-        return new Iterator<T>() {
+        return new CloseableIterator<T>() {
             @Override
             public boolean hasNext() {
                 return iterator.hasNext();
@@ -429,6 +527,11 @@ public final class IteratorUtils {
                 final T object = iterator.next();
                 iterator.remove();
                 return object;
+            }
+
+            @Override
+            public void close() {
+                CloseableIterator.closeIterator(iterator);
             }
         };
     }

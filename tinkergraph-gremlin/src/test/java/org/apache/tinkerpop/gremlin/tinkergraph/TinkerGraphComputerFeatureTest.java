@@ -20,6 +20,7 @@ package org.apache.tinkerpop.gremlin.tinkergraph;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
+import com.google.inject.Provides;
 import com.google.inject.Stage;
 import io.cucumber.guice.CucumberModules;
 import io.cucumber.junit.Cucumber;
@@ -30,11 +31,11 @@ import org.junit.runner.RunWith;
 
 @RunWith(Cucumber.class)
 @CucumberOptions(
-        tags = "not @RemoteOnly",
+        tags = "not @RemoteOnly and not @GraphComputerVerificationElementSupported and not @InsertionOrderingRequired",
         glue = { "org.apache.tinkerpop.gremlin.features" },
         objectFactory = TinkerGraphComputerFeatureTest.TinkerGraphGuiceFactory.class,
-        features = { "../gremlin-test/features" },
-        plugin = {"pretty", "junit:target/cucumber.xml"})
+        features = { "classpath:/org/apache/tinkerpop/gremlin/test/features" },
+        plugin = {"progress", "junit:target/cucumber.xml"})
 public class TinkerGraphComputerFeatureTest {
 
     public static class TinkerGraphGuiceFactory extends AbstractGuiceFactory {
@@ -46,7 +47,12 @@ public class TinkerGraphComputerFeatureTest {
     public static final class ServiceModule extends AbstractModule {
         @Override
         protected void configure() {
-            bind(World.class).to(TinkerGraphWorld.ComputerWorld.class);
+            bind(World.class).to(TinkerWorld.ComputerWorld.class);
+        }
+
+        @Provides
+        static TinkerWorld.ComputerWorld provideComputerWorld() {
+            return new TinkerWorld.ComputerWorld(new TinkerWorld.TinkerGraphWorld());
         }
     }
 }

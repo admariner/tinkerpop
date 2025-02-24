@@ -24,7 +24,8 @@ import org.apache.tinkerpop.gremlin.LoadGraphWith;
 import org.apache.tinkerpop.gremlin.TestHelper;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
-import org.apache.tinkerpop.gremlin.driver.ser.Serializers;
+import org.apache.tinkerpop.gremlin.driver.RequestOptions;
+import org.apache.tinkerpop.gremlin.groovy.jsr223.GremlinGroovyScriptEngine;
 import org.apache.tinkerpop.gremlin.process.computer.Computer;
 import org.apache.tinkerpop.gremlin.process.remote.RemoteConnection;
 import org.apache.tinkerpop.gremlin.structure.RemoteGraph;
@@ -36,6 +37,7 @@ import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.server.TestClientFactory;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.tinkergraph.process.computer.TinkerGraphComputer;
+import org.apache.tinkerpop.gremlin.util.ser.Serializers;
 
 import java.io.InputStream;
 import java.util.HashMap;
@@ -206,6 +208,10 @@ import static org.apache.tinkerpop.gremlin.process.remote.RemoteConnection.GREML
         test = "org.apache.tinkerpop.gremlin.process.traversal.step.map.UnfoldTest",
         method = "g_V_valueMap_unfold_mapXkeyX",
         reason = "Tests that include lambdas are not supported by the test suite for remotes")
+@Graph.OptOut(
+        test = "org.apache.tinkerpop.gremlin.process.traversal.step.OrderabilityTest",
+        method = "g_inject_order_with_unknown_type",
+        reason = "Tests that inject a generic Java Object are not supported by the test suite for remotes")
 public abstract class AbstractRemoteGraphProvider extends AbstractGraphProvider implements AutoCloseable {
     private final int AVAILABLE_PROCESSORS = Runtime.getRuntime().availableProcessors();
     private static final Set<Class> IMPLEMENTATION = new HashSet<Class>() {{
@@ -217,16 +223,22 @@ public abstract class AbstractRemoteGraphProvider extends AbstractGraphProvider 
     private final Cluster cluster;
     private final Client client;
     private final boolean useComputer;
+    private final String queryLanguage;
 
-
-    public AbstractRemoteGraphProvider(final Cluster cluster) {
-        this(cluster, false);
-    }
-
-    public AbstractRemoteGraphProvider(final Cluster cluster, final boolean useComputer) {
+    /**
+     * A helper class that can provide a graph for feature testing.
+     *
+     * @param cluster {@link Cluster} to connect.
+     * @param useComputer Test with {@link Computer} or not.
+     * @param queryLanguage available options are "gremlin-lang" and "groovy-test".
+     *                      "groovy-test" passing incoming Gremlin through the translator to groovy so that
+     *                      it can be executed in the {@link GremlinGroovyScriptEngine}.
+     */
+    public AbstractRemoteGraphProvider(final Cluster cluster, final boolean useComputer, final String queryLanguage) {
         this.cluster = cluster;
         this.client = this.cluster.connect();
         this.useComputer = useComputer;
+        this.queryLanguage = queryLanguage;
         try {
             startServer();
         } catch (Exception ex) {
@@ -236,6 +248,12 @@ public abstract class AbstractRemoteGraphProvider extends AbstractGraphProvider 
 
     @Override
     public void close() throws Exception {
+        try {
+            cluster.close();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+
         try {
             stopServer();
         } catch (Exception ex) {
@@ -269,10 +287,11 @@ public abstract class AbstractRemoteGraphProvider extends AbstractGraphProvider 
     @Override
     public void clear(final Graph graph, final Configuration configuration) throws Exception {
         // doesn't bother to clear grateful/sink because i don't believe that ever gets mutated - read-only
+        RequestOptions ro = RequestOptions.build().language("gremlin-groovy").create();
         client.submit("classic.clear();modern.clear();crew.clear();graph.clear();" +
                 "TinkerFactory.generateClassic(classic);" +
                 "TinkerFactory.generateModern(modern);" +
-                "TinkerFactory.generateTheCrew(crew);null").all().get();
+                "TinkerFactory.generateTheCrew(crew);null", ro).all().get();
     }
 
     @Override
@@ -294,7 +313,9 @@ public abstract class AbstractRemoteGraphProvider extends AbstractGraphProvider 
         // concerns and will be likely relegated to the test module so that OptOut can continue to work and we can
         // full execute the process tests. we should be able to clean this up considerably when RemoteGraph can be
         // moved with breaking change.
-        final GraphTraversalSource g = AnonymousTraversalSource.traversal().withRemote(((RemoteGraph) graph).getConnection());
+        final GraphTraversalSource g = AnonymousTraversalSource.traversal()
+                .with(((RemoteGraph) graph).getConnection())
+                .with("language", queryLanguage);
 
         if (useComputer) {
             final int state = TestHelper.RANDOM.nextInt(3);
@@ -314,8 +335,8 @@ public abstract class AbstractRemoteGraphProvider extends AbstractGraphProvider 
     }
 
     public static Cluster.Builder createClusterBuilder(final Serializers serializer) {
-        // match the content length in the server yaml
-        return TestClientFactory.build().maxContentLength(1000000).serializer(serializer);
+        // bigger buffer for some tests
+        return TestClientFactory.build().maxResponseContentLength(12_000_000).serializer(serializer);
     }
 
     public static void startServer() throws Exception {
@@ -323,8 +344,8 @@ public abstract class AbstractRemoteGraphProvider extends AbstractGraphProvider 
         final Settings settings = Settings.read(stream);
         ServerTestHelper.rewritePathsInGremlinServerSettings(settings);
 
-        settings.maxContentLength = 1024000;
-        settings.maxChunkSize =1024000;
+        settings.maxRequestContentLength = 1024000;
+        settings.maxChunkSize = 1024000;
 
         server = new GremlinServer(settings);
 

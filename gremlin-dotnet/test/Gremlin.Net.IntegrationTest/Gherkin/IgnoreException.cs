@@ -37,7 +37,7 @@ namespace Gremlin.Net.IntegrationTest.Gherkin
 
         private static string GetMessage(IgnoreReason reason)
         {
-            string reasonSuffix = null;
+            string? reasonSuffix = null;
             switch (reason)
             {
                 case IgnoreReason.NoReason:
@@ -56,15 +56,15 @@ namespace Gremlin.Net.IntegrationTest.Gherkin
         /// C# does not allow a `null` value to be used as a key.
         /// </summary>
         NullKeysInMapNotSupported,
-        
-        /// <summary>
-        /// C# array equality is by reference not contents so the gherkin setup won't assert properly
-        /// </summary>
-        ArrayKeysInMapNotAssertingInGherkin,
 
         /// <summary>
         /// The GLV suite does not test against a graph that has null property values enabled.
         /// </summary>
-        NullPropertyValuesNotSupportedOnTestGraph
+        NullPropertyValuesNotSupportedOnTestGraph,
+
+        /// <summary>
+        /// Tests with lambdas can't be translated. This should be removed once lambdas are completely dropped.
+        /// </summary>
+        LambdasNotTranslated
     }
 }

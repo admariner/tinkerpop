@@ -1,0 +1,86 @@
+#  Licensed to the Apache Software Foundation (ASF) under one
+#    or more contributor license agreements.  See the NOTICE file
+#    distributed with this work for additional information
+#    regarding copyright ownership.  The ASF licenses this file
+#    to you under the Apache License, Version 2.0 (the
+#    "License"); you may not use this file except in compliance
+#    with the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing,
+#    software distributed under the License is distributed on an
+#    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+#    KIND, either express or implied.  See the License for the
+#    specific language governing permissions and limitations
+#    under the License.
+
+services:
+
+  gremlin-server-test-python:
+    container_name: gremlin-server-test-python
+    image: tinkerpop:gremlin-server-test-${GREMLIN_SERVER}
+    hostname: gremlin-server-test
+    build:
+      context: ../
+      dockerfile: docker/gremlin-test-server/Dockerfile
+      args:
+        - GREMLIN_SERVER=${GREMLIN_SERVER}
+    ports:
+      - "45940:45940"
+      - "45941:45941"
+      - "4588:4588"
+    volumes:
+      - ${HOME}/.groovy:/root/.groovy
+      - ${HOME}/.m2:/root/.m2
+      - ${ABS_PROJECT_HOME}/gremlin-test/target:/opt/gremlin-test
+    healthcheck:
+      test: [ "CMD-SHELL", "apk add curl && curl -X POST -d {\"gremlin\":\"100-1\"} http://localhost:45940" ]
+      interval: 30s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
+
+  gremlin-python-integration-tests:
+    container_name: gremlin-python-integration-tests
+    image: python:3.9
+    volumes:
+      - ${BUILD_DIR:-./src/main/python}:/python_app
+      - ../gremlin-test/src/main/resources/org/apache/tinkerpop/gremlin/test/features:/python_app/gremlin-test/features
+      - ../gremlin-test/src/main/resources/org/apache/tinkerpop/gremlin/structure/io/graphbinary:/python_app/gremlin-test/graphbinary
+      - ../gremlin-test/src/main/resources/org/apache/tinkerpop/gremlin/structure/io/graphson:/python_app/gremlin-test/graphson
+      - ../docker/gremlin-test-server:/python_app/gremlin-test-server
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - GREMLIN_SERVER_URL=http://gremlin-server-test-python:{}/gremlin
+      - GREMLIN_SERVER_BASIC_AUTH_URL=https://gremlin-server-test-python:{}/gremlin
+      - IO_TEST_DIRECTORY=/python_app/gremlin-test/graphbinary/
+      - IO_TEST_DIRECTORY_GRAPHSON=/python_app/gremlin-test/graphson/
+      - VERSION=${VERSION}
+    working_dir: /python_app
+    command: >
+      bash -c "pip install wheel radish-bdd PyHamcrest aenum isodate
+      && python3 ./setup.py build
+      && python3 ./setup.py test
+      && python3 ./setup.py install
+      && radish -f dots -e -t -b ./radish ./gremlin-test --user-data='serializer=application/vnd.graphbinary-v4.0' --user-data='bulked=true'
+      && radish -f dots -e -t -b ./radish ./gremlin-test --user-data='serializer=application/vnd.graphbinary-v4.0' --user-data='parameterize=true'
+      && radish -f dots -e -t -b ./radish ./gremlin-test --user-data='serializer=application/vnd.graphbinary-v4.0'
+      && radish -f dots -e -t -b ./radish ./gremlin-test --user-data='serializer=application/vnd.gremlin-v4.0+json' --user-data='parameterize=true'
+      && radish -f dots -e -t -b ./radish ./gremlin-test --user-data='serializer=application/vnd.gremlin-v4.0+json';
+      EXIT_CODE=$$?; chown -R `stat -c "%u:%g" .` .; exit $$EXIT_CODE"
+    depends_on:
+      gremlin-server-test-python:
+        condition: service_healthy
+
+  gremlin-python-package:
+    container_name: gremlin-python-package
+    image: python:3.9
+    volumes:
+      - ${PACKAGE_DIR:-./src/main/python}:/python_package
+    working_dir: /python_package
+    environment:
+      - VERSION=${VERSION}
+    command: >
+      bash -c "python3 setup.py sdist bdist_wheel;
+      EXIT_CODE=$$?; chown -R `stat -c "%u:%g" .` .; exit $$EXIT_CODE"

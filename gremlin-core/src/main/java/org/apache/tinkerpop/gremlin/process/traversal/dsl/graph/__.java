@@ -18,12 +18,14 @@
  */
 package org.apache.tinkerpop.gremlin.process.traversal.dsl.graph;
 
+import org.apache.tinkerpop.gremlin.process.traversal.DT;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Path;
 import org.apache.tinkerpop.gremlin.process.traversal.Pop;
 import org.apache.tinkerpop.gremlin.process.traversal.Scope;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.step.GValue;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.Tree;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
 import org.apache.tinkerpop.gremlin.structure.Column;
@@ -35,10 +37,12 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.VertexProperty;
 
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -107,6 +111,13 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#constant(GValue)
+     */
+    public static <A> GraphTraversal<A, A> constant(final GValue<A> a) {
+        return __.<A>start().constant(a);
+    }
+
+    /**
      * @see GraphTraversal#label()
      */
     public static <A extends Element> GraphTraversal<A, String> label() {
@@ -128,10 +139,38 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#E(Object...)
+     */
+    public static <A> GraphTraversal<A, Edge> E(final Object... edgeIdsOrElements) {
+        return __.<A>start().E(edgeIdsOrElements);
+    }
+
+    /**
+     * @see GraphTraversal#to(Direction)
+     */
+    public static GraphTraversal<Vertex, Vertex> to(final Direction direction) {
+        return __.<Vertex>start().to(direction);
+    }
+
+    /**
      * @see GraphTraversal#to(Direction, String...)
      */
     public static GraphTraversal<Vertex, Vertex> to(final Direction direction, final String... edgeLabels) {
         return __.<Vertex>start().to(direction, edgeLabels);
+    }
+
+    /**
+     * @see GraphTraversal#to(Direction, GValue...)
+     */
+    public static GraphTraversal<Vertex, Vertex> to(final Direction direction, final GValue<String>... edgeLabels) {
+        return __.<Vertex>start().to(direction, edgeLabels);
+    }
+
+    /**
+     * @see GraphTraversal#out()
+     */
+    public static GraphTraversal<Vertex, Vertex> out() {
+        return __.<Vertex>start().out();
     }
 
     /**
@@ -142,10 +181,38 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#out(GValue...)
+     */
+    public static GraphTraversal<Vertex, Vertex> out(final GValue<String>... edgeLabels) {
+        return __.<Vertex>start().out(edgeLabels);
+    }
+
+    /**
+     * @see GraphTraversal#in()
+     */
+    public static GraphTraversal<Vertex, Vertex> in() {
+        return __.<Vertex>start().in();
+    }
+
+    /**
      * @see GraphTraversal#in(String...)
      */
     public static GraphTraversal<Vertex, Vertex> in(final String... edgeLabels) {
         return __.<Vertex>start().in(edgeLabels);
+    }
+
+    /**
+     * @see GraphTraversal#in(GValue...)
+     */
+    public static GraphTraversal<Vertex, Vertex> in(final GValue<String>... edgeLabels) {
+        return __.<Vertex>start().in(edgeLabels);
+    }
+
+    /**
+     * @see GraphTraversal#both()
+     */
+    public static GraphTraversal<Vertex, Vertex> both() {
+        return __.<Vertex>start().both();
     }
 
     /**
@@ -156,10 +223,38 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#both(GValue...)
+     */
+    public static GraphTraversal<Vertex, Vertex> both(final GValue<String>... edgeLabels) {
+        return __.<Vertex>start().both(edgeLabels);
+    }
+
+    /**
+     * @see GraphTraversal#toE(Direction)
+     */
+    public static GraphTraversal<Vertex, Edge> toE(final Direction direction) {
+        return __.<Vertex>start().toE(direction);
+    }
+
+    /**
      * @see GraphTraversal#toE(Direction, String...)
      */
     public static GraphTraversal<Vertex, Edge> toE(final Direction direction, final String... edgeLabels) {
         return __.<Vertex>start().toE(direction, edgeLabels);
+    }
+
+    /**
+     * @see GraphTraversal#toE(Direction, GValue...)
+     */
+    public static GraphTraversal<Vertex, Edge> toE(final Direction direction, final GValue<String>... edgeLabels) {
+        return __.<Vertex>start().toE(direction, edgeLabels);
+    }
+
+    /**
+     * @see GraphTraversal#outE()
+     */
+    public static GraphTraversal<Vertex, Edge> outE() {
+        return __.<Vertex>start().outE();
     }
 
     /**
@@ -170,6 +265,20 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#outE(GValue...)
+     */
+    public static GraphTraversal<Vertex, Edge> outE(final GValue<String>... edgeLabels) {
+        return __.<Vertex>start().outE(edgeLabels);
+    }
+
+    /**
+     * @see GraphTraversal#inE()
+     */
+    public static GraphTraversal<Vertex, Edge> inE() {
+        return __.<Vertex>start().inE();
+    }
+
+    /**
      * @see GraphTraversal#inE(String...)
      */
     public static GraphTraversal<Vertex, Edge> inE(final String... edgeLabels) {
@@ -177,9 +286,30 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#inE(GValue...)
+     */
+    public static GraphTraversal<Vertex, Edge> inE(final GValue<String>... edgeLabels) {
+        return __.<Vertex>start().inE(edgeLabels);
+    }
+
+    /**
+     * @see GraphTraversal#bothE()
+     */
+    public static GraphTraversal<Vertex, Edge> bothE() {
+        return __.<Vertex>start().bothE();
+    }
+
+    /**
      * @see GraphTraversal#bothE(String...)
      */
     public static GraphTraversal<Vertex, Edge> bothE(final String... edgeLabels) {
+        return __.<Vertex>start().bothE(edgeLabels);
+    }
+
+    /**
+     * @see GraphTraversal#bothE(GValue...)
+     */
+    public static GraphTraversal<Vertex, Edge> bothE(final GValue<String>... edgeLabels) {
         return __.<Vertex>start().bothE(edgeLabels);
     }
 
@@ -502,6 +632,13 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#addV(GValue)
+     */
+    public static <A> GraphTraversal<A, Vertex> addV(final GValue<String> vertexLabel) {
+        return __.<A>start().addV(vertexLabel);
+    }
+
+    /**
      * @see GraphTraversal#addV(org.apache.tinkerpop.gremlin.process.traversal.Traversal)
      */
     public static <A> GraphTraversal<A, Vertex> addV(final Traversal<?, String> vertexLabelTraversal) {
@@ -516,6 +653,34 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#mergeV()
+     */
+    public static <A> GraphTraversal<A, Vertex> mergeV() {
+        return __.<A>start().mergeV();
+    }
+
+    /**
+     * @see GraphTraversal#mergeV(Map)
+     */
+    public static <A> GraphTraversal<A, Vertex> mergeV(final Map<Object, Object> searchCreate) {
+        return __.<A>start().mergeV(searchCreate);
+    }
+
+    /**
+     * @see GraphTraversal#mergeV(GValue)
+     */
+    public static <A> GraphTraversal<A, Vertex> mergeV(final GValue<Map<Object, Object>> searchCreate) {
+        return __.<A>start().mergeV(searchCreate);
+    }
+
+    /**
+     * @see GraphTraversal#mergeV(Traversal)
+     */
+    public static <A> GraphTraversal<A, Vertex> mergeV(final Traversal<?, Map<Object, Object>> searchCreate) {
+        return __.<A>start().mergeV(searchCreate);
+    }
+
+    /**
      * @see GraphTraversal#addE(String)
      */
     public static <A> GraphTraversal<A, Edge> addE(final String edgeLabel) {
@@ -523,10 +688,45 @@ public class __ {
     }
 
     /**
-     * @see GraphTraversal#addE(org.apache.tinkerpop.gremlin.process.traversal.Traversal)
+     * @see GraphTraversal#addE(GValue)
+     */
+    public static <A> GraphTraversal<A, Edge> addE(final GValue<String> edgeLabel) {
+        return __.<A>start().addE(edgeLabel);
+    }
+
+    /**
+     * @see GraphTraversal#addE(Traversal)
      */
     public static <A> GraphTraversal<A, Edge> addE(final Traversal<?, String> edgeLabelTraversal) {
         return __.<A>start().addE(edgeLabelTraversal);
+    }
+
+    /**
+     * @see GraphTraversal#mergeE()
+     */
+    public static <A> GraphTraversal<A, Edge> mergeE() {
+        return __.<A>start().mergeE();
+    }
+
+    /**
+     * @see GraphTraversal#mergeE(Map)
+     */
+    public static <A> GraphTraversal<A, Edge> mergeE(final Map<Object, Object> searchCreate) {
+        return __.<A>start().mergeE(searchCreate);
+    }
+
+    /**
+     * @see GraphTraversal#mergeE(GValue)
+     */
+    public static <A> GraphTraversal<A, Edge> mergeE(final GValue<Map<Object, Object>> searchCreate) {
+        return __.<A>start().mergeE(searchCreate);
+    }
+
+    /**
+     * @see GraphTraversal#mergeE(Traversal)
+     */
+    public static <A> GraphTraversal<A, Edge> mergeE(final Traversal<?, Map<Object, Object>> searchCreate) {
+        return __.<A>start().mergeE(searchCreate);
     }
 
     /**
@@ -534,6 +734,321 @@ public class __ {
      */
     public static <A> GraphTraversal<A, Double> math(final String expression) {
         return __.<A>start().math(expression);
+    }
+
+    /**
+     * @see GraphTraversal#concat(Traversal, Traversal...)
+     */
+    public static <A> GraphTraversal<A, String> concat(final Traversal<A, String> concatTraversal, final Traversal<A, String>... otherConcatTraversals) {
+        return __.<A>start().concat(concatTraversal, otherConcatTraversals);
+    }
+
+    /**
+     * @see GraphTraversal#concat(String...)
+     */
+    public static <A> GraphTraversal<A, String> concat(final String... concatString) {
+        return __.<A>start().concat(concatString);
+    }
+
+    /**
+     * @see GraphTraversal#asString()
+     */
+    public static <A> GraphTraversal<A, String> asString() {
+        return __.<A>start().asString();
+    }
+
+    /**
+     * @see GraphTraversal#asString()
+     */
+    public static <A, B> GraphTraversal<A, B> asString(final Scope scope) {
+        return __.<A>start().asString(scope);
+    }
+
+    /**
+     * @see GraphTraversal#length()
+     */
+    public static <A> GraphTraversal<A, Integer> length() {
+        return __.<A>start().length();
+    }
+
+    /**
+     * @see GraphTraversal#length()
+     */
+    public static <A, B> GraphTraversal<A, B> length(final Scope scope) {
+        return __.<A>start().length(scope);
+    }
+
+    /**
+     * @see GraphTraversal#toLower()
+     */
+    public static <A> GraphTraversal<A, String> toLower() {
+        return __.<A>start().toLower();
+    }
+
+    /**
+     * @see GraphTraversal#toLower()
+     */
+    public static <A, B> GraphTraversal<A, B> toLower(final Scope scope) {
+        return __.<A>start().toLower(scope);
+    }
+
+    /**
+     * @see GraphTraversal#toUpper()
+     */
+    public static <A> GraphTraversal<A, String> toUpper() {
+        return __.<A>start().toUpper();
+    }
+
+    /**
+     * @see GraphTraversal#toUpper(Scope)
+     */
+    public static <A, B> GraphTraversal<A, B> toUpper(final Scope scope) {
+        return __.<A>start().toUpper(scope);
+    }
+
+    /**
+     * @see GraphTraversal#trim()
+     */
+    public static <A> GraphTraversal<A, String> trim() {
+        return __.<A>start().trim();
+    }
+
+    /**
+     * @see GraphTraversal#trim(Scope)
+     */
+    public static <A, B> GraphTraversal<A, B> trim(final Scope scope) {
+        return __.<A>start().trim(scope);
+    }
+
+    /**
+     * @see GraphTraversal#lTrim()
+     */
+    public static <A> GraphTraversal<A, String> lTrim() {
+        return __.<A>start().lTrim();
+    }
+
+    /**
+     * @see GraphTraversal#lTrim(Scope)
+     */
+    public static <A, B> GraphTraversal<A, B> lTrim(final Scope scope) {
+        return __.<A>start().lTrim(scope);
+    }
+
+    /**
+     * @see GraphTraversal#rTrim()
+     */
+    public static <A> GraphTraversal<A, String> rTrim() {
+        return __.<A>start().rTrim();
+    }
+
+    /**
+     * @see GraphTraversal#rTrim(Scope)
+     */
+    public static <A, B> GraphTraversal<A, B> rTrim(final Scope scope) {
+        return __.<A>start().rTrim(scope);
+    }
+
+    /**
+     * @see GraphTraversal#reverse()
+     */
+    public static <A, B> GraphTraversal<A, B> reverse() {
+        return __.<A>start().reverse();
+    }
+
+    /**
+     * @see GraphTraversal#replace(String, String)
+     */
+    public static <A> GraphTraversal<A, String> replace(final String oldChar, final String newChar) {
+        return __.<A>start().replace(oldChar, newChar);
+    }
+
+    /**
+     * @see GraphTraversal#replace(Scope, String, String)
+     */
+    public static <A, B> GraphTraversal<A, B> replace(final Scope scope, final String oldChar, final String newChar) {
+        return __.<A>start().replace(scope, oldChar, newChar);
+    }
+
+    /**
+     * @see GraphTraversal#split(String)
+     */
+    public static <A> GraphTraversal<A, List<String>> split(final String separator) {
+        return __.<A>start().split(separator);
+    }
+
+    /**
+     * @see GraphTraversal#split(Scope, String)
+     */
+    public static <A, B> GraphTraversal<A, List<B>> split(final Scope scope, final String separator) {
+        return __.<A>start().split(scope, separator);
+    }
+
+    /**
+     * @see GraphTraversal#substring(int)
+     */
+    public static <A> GraphTraversal<A, String> substring(final int startIndex) {
+        return __.<A>start().substring(startIndex);
+    }
+
+    /**
+     * @see GraphTraversal#substring(Scope, int)
+     */
+    public static <A, B> GraphTraversal<A, B> substring(final Scope scope, final int startIndex) {
+        return __.<A>start().substring(scope, startIndex);
+    }
+
+    /**
+     * @see GraphTraversal#substring(int, int)
+     */
+    public static <A> GraphTraversal<A, String> substring(final int startIndex, final int endIndex) {
+        return __.<A>start().substring(startIndex, endIndex);
+    }
+
+    /**
+     * @see GraphTraversal#substring(Scope, int, int)
+     */
+    public static <A, B> GraphTraversal<A, B> substring(final Scope scope, final int startIndex, final int endIndex) {
+        return __.<A>start().substring(scope, startIndex, endIndex);
+    }
+
+    /**
+     * @see GraphTraversal#format(String)
+     */
+    public static <A> GraphTraversal<A, String> format(final String format) {
+        return __.<A>start().format(format);
+    }
+
+    /**
+     * @see GraphTraversal#asDate()
+     */
+    public static <A> GraphTraversal<A, OffsetDateTime> asDate() {
+        return __.<A>start().asDate();
+    }
+
+    /**
+     * @see GraphTraversal#dateAdd(DT, int)
+     */
+    public static <A> GraphTraversal<A, OffsetDateTime> dateAdd(final DT dateToken, final int value) {
+        return __.<A>start().dateAdd(dateToken, value);
+    }
+
+    /**
+     * @see GraphTraversal#dateDiff(OffsetDateTime)
+     */
+    public static <A> GraphTraversal<A, Long> dateDiff(final OffsetDateTime value) {
+        return __.<A>start().dateDiff(value);
+    }
+
+    /**
+     * @see GraphTraversal#dateDiff(Traversal)
+     */
+    public static <A> GraphTraversal<A, Long> dateDiff(final Traversal<?, OffsetDateTime> dateTraversal) {
+        return __.<A>start().dateDiff(dateTraversal);
+    }
+
+    /**
+     * @see GraphTraversal#difference(Object)
+     */
+    public static <A> GraphTraversal<A, Set<?>> difference(final Object values) {
+        return __.<A>start().difference(values);
+    }
+
+    /**
+     * @see GraphTraversal#difference(GValue)
+     */
+    public static <A> GraphTraversal<A, Set<?>> difference(final GValue<Object> values) {
+        return __.<A>start().difference(values);
+    }
+
+    /**
+     * @see GraphTraversal#discard()
+     */
+    public static <A> GraphTraversal<A, A> discard() {
+        return __.<A>start().discard();
+    }
+
+    /**
+     * @see GraphTraversal#disjunct(Object)
+     */
+    public static <A> GraphTraversal<A, Set<?>> disjunct(final Object values) {
+        return __.<A>start().disjunct(values);
+    }
+
+    /**
+     * @see GraphTraversal#disjunct(GValue)
+     */
+    public static <A> GraphTraversal<A, Set<?>> disjunct(final GValue<Object> values) {
+        return __.<A>start().disjunct(values);
+    }
+
+    /**
+     * @see GraphTraversal#intersect(Object)
+     */
+    public static <A> GraphTraversal<A, Set<?>> intersect(final Object values) {
+        return __.<A>start().intersect(values);
+    }
+
+    /**
+     * @see GraphTraversal#intersect(GValue)
+     */
+    public static <A> GraphTraversal<A, Set<?>> intersect(final GValue<Object> values) {
+        return __.<A>start().intersect(values);
+    }
+
+    /**
+     * @see GraphTraversal#conjoin(String)
+     */
+    public static <A> GraphTraversal<A, String> conjoin(final String values) {
+        return __.<A>start().conjoin(values);
+    }
+
+    /**
+     * @see GraphTraversal#conjoin(GValue)
+     */
+    public static <A> GraphTraversal<A, String> conjoin(final GValue<String> values) {
+        return __.<A>start().conjoin(values);
+    }
+
+    /**
+     * @see GraphTraversal#merge(Object)
+     */
+    public static <A, B> GraphTraversal<A, B> merge(final Object values) {
+        return __.<A>start().merge(values);
+    }
+
+    /**
+     * @see GraphTraversal#merge(GValue)
+     */
+    public static <A, B> GraphTraversal<A, B> merge(final GValue<Object> values) {
+        return __.<A>start().merge(values);
+    }
+
+    /**
+     * @see GraphTraversal#combine(Object)
+     */
+    public static <A> GraphTraversal<A, List<?>> combine(final Object values) {
+        return __.<A>start().combine(values);
+    }
+
+    /**
+     * @see GraphTraversal#combine(GValue)
+     */
+    public static <A> GraphTraversal<A, List<?>> combine(final GValue<Object> values) {
+        return __.<A>start().combine(values);
+    }
+
+    /**
+     * @see GraphTraversal#product(Object)
+     */
+    public static <A> GraphTraversal<A, List<List<?>>> product(final Object values) {
+        return __.<A>start().product(values);
+    }
+
+    /**
+     * @see GraphTraversal#product(GValue)
+     */
+    public static <A> GraphTraversal<A, List<List<?>>> product(final GValue<Object> values) {
+        return __.<A>start().product(values);
     }
 
     ///////////////////// FILTER STEPS /////////////////////
@@ -623,6 +1138,21 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#has(GValue, String, P)
+     */
+    public static <A> GraphTraversal<A, A> has(final GValue<String> label, final String propertyKey, final P<?> predicate) {
+        return __.<A>start().has(label, propertyKey, predicate);
+    }
+
+
+    /**
+     * @see GraphTraversal#has(GValue, String, Object)
+     */
+    public static <A> GraphTraversal<A, A> has(final GValue<String> label, final String propertyKey, final Object value) {
+        return __.<A>start().has(label, propertyKey, value);
+    }
+
+    /**
      * @see GraphTraversal#has(String, String, P)
      */
     public static <A> GraphTraversal<A, A> has(final String label, final String propertyKey, final P<?> predicate) {
@@ -661,6 +1191,13 @@ public class __ {
      * @see GraphTraversal#hasLabel(String, String...)
      */
     public static <A> GraphTraversal<A, A> hasLabel(final String label, String... otherLabels) {
+        return __.<A>start().hasLabel(label, otherLabels);
+    }
+
+    /**
+     * @see GraphTraversal#hasLabel(GValue, GValue...)
+     */
+    public static <A> GraphTraversal<A, A> hasLabel(final GValue<String> label, GValue<String>... otherLabels) {
         return __.<A>start().hasLabel(label, otherLabels);
     }
 
@@ -763,9 +1300,23 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#coin(GValue)
+     */
+    public static <A> GraphTraversal<A, A> coin(final GValue<Double> probability) {
+        return __.<A>start().coin(probability);
+    }
+
+    /**
      * @see GraphTraversal#range(long, long)
      */
     public static <A> GraphTraversal<A, A> range(final long low, final long high) {
+        return __.<A>start().range(low, high);
+    }
+
+    /**
+     * @see GraphTraversal#range(GValue, GValue)
+     */
+    public static <A> GraphTraversal<A, A> range(final GValue<Long> low, final GValue<Long> high) {
         return __.<A>start().range(low, high);
     }
 
@@ -777,9 +1328,23 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#range(Scope, GValue, GValue)
+     */
+    public static <A> GraphTraversal<A, A> range(final Scope scope, final GValue<Long> low, final GValue<Long> high) {
+        return __.<A>start().range(scope, low, high);
+    }
+
+    /**
      * @see GraphTraversal#limit(long)
      */
     public static <A> GraphTraversal<A, A> limit(final long limit) {
+        return __.<A>start().limit(limit);
+    }
+
+    /**
+     * @see GraphTraversal#limit(GValue)
+     */
+    public static <A> GraphTraversal<A, A> limit(final GValue<Long> limit) {
         return __.<A>start().limit(limit);
     }
 
@@ -791,6 +1356,13 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#limit(Scope, GValue)
+     */
+    public static <A> GraphTraversal<A, A> limit(final Scope scope, final GValue<Long> limit) {
+        return __.<A>start().limit(scope, limit);
+    }
+
+    /**
      * @see GraphTraversal#skip(long)
      */
     public static <A> GraphTraversal<A, A> skip(final long skip) {
@@ -798,9 +1370,23 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#skip(GValue)
+     */
+    public static <A> GraphTraversal<A, A> skip(final GValue<Long> skip) {
+        return __.<A>start().skip(skip);
+    }
+
+    /**
      * @see GraphTraversal#skip(Scope, long)
      */
     public static <A> GraphTraversal<A, A> skip(final Scope scope, final long skip) {
+        return __.<A>start().skip(scope, skip);
+    }
+
+    /**
+     * @see GraphTraversal#skip(Scope, GValue)
+     */
+    public static <A> GraphTraversal<A, A> skip(final Scope scope, final GValue<Long> skip) {
         return __.<A>start().skip(scope, skip);
     }
 
@@ -819,6 +1405,13 @@ public class __ {
     }
 
     /**
+     * @see GraphTraversal#tail(GValue)
+     */
+    public static <A> GraphTraversal<A, A> tail(final GValue<Long> limit) {
+        return __.<A>start().tail(limit);
+    }
+
+    /**
      * @see GraphTraversal#tail(Scope)
      */
     public static <A> GraphTraversal<A, A> tail(final Scope scope) {
@@ -829,6 +1422,13 @@ public class __ {
      * @see GraphTraversal#tail(Scope, long)
      */
     public static <A> GraphTraversal<A, A> tail(final Scope scope, final long limit) {
+        return __.<A>start().tail(scope, limit);
+    }
+
+    /**
+     * @see GraphTraversal#tail(Scope, GValue)
+     */
+    public static <A> GraphTraversal<A, A> tail(final Scope scope, final GValue<Long> limit) {
         return __.<A>start().tail(scope, limit);
     }
 
@@ -866,6 +1466,21 @@ public class __ {
     public static <A> GraphTraversal<A, A> drop() {
         return __.<A>start().drop();
     }
+
+    /**
+     * @see GraphTraversal#all(P)
+     */
+    public static <A> GraphTraversal<A, A> all(final P<A> predicate) { return __.<A>start().all(predicate); }
+
+    /**
+     * @see GraphTraversal#any(P)
+     */
+    public static <A> GraphTraversal<A, A> any(final P<A> predicate) { return __.<A>start().any(predicate); }
+
+    /**
+     * @see GraphTraversal#none(P)
+     */
+    public static <A> GraphTraversal<A, A> none(final P<A> predicate) { return __.<A>start().none(predicate); }
 
     ///////////////////// SIDE-EFFECT STEPS /////////////////////
 
@@ -909,6 +1524,20 @@ public class __ {
      */
     public static <A> GraphTraversal<A, A> aggregate(final Scope scope, final String sideEffectKey) {
         return __.<A>start().aggregate(scope, sideEffectKey);
+    }
+
+    /**
+     * @see GraphTraversal#fail()
+     */
+    public static <A>  GraphTraversal<A, A> fail() {
+        return __.<A>start().fail();
+    }
+
+    /**
+     * @see GraphTraversal#fail(String)
+     */
+    public static <A>  GraphTraversal<A, A> fail(final String message) {
+        return __.<A>start().fail(message);
     }
 
     /**
@@ -967,6 +1596,13 @@ public class __ {
      */
     public static <A> GraphTraversal<A, A> property(final VertexProperty.Cardinality cardinality, final Object key, final Object value, final Object... keyValues) {
         return __.<A>start().property(cardinality, key, value, keyValues);
+    }
+
+    /**
+     * @see GraphTraversal#property(Map)
+     */
+    public static <A> GraphTraversal<A, A> property(final Map<Object, Object> value) {
+        return __.<A>start().property(value);
     }
 
     ///////////////////// BRANCH STEPS /////////////////////
@@ -1146,5 +1782,54 @@ public class __ {
      */
     public static <A, B> GraphTraversal<A, B> index() {
         return __.<A>start().index();
+    }
+
+    /**
+     * @see GraphTraversal#element()
+     */
+    public static <A, B> GraphTraversal<A, Element> element() {
+        return __.<A>start().element();
+    }
+
+    /**
+     * @see GraphTraversal#call(String)
+     */
+    public static <A, B> GraphTraversal<A, B> call(final String service) {
+        return __.<A>start().call(service);
+    }
+
+    /**
+     * @see GraphTraversal#call(String, Map)
+     */
+    public static <A, B> GraphTraversal<A, B> call(final String service, final Map params) {
+        return __.<A>start().call(service, params);
+    }
+
+    /**
+     * @see GraphTraversal#call(String, GValue)
+     */
+    public static <A, B> GraphTraversal<A, B> call(final String service, final GValue<Map> params) {
+        return __.<A>start().call(service, params);
+    }
+
+    /**
+     * @see GraphTraversal#call(String, Traversal)
+     */
+    public static <A, B> GraphTraversal<A, B> call(final String service, final Traversal<?, Map<?,?>> childTraversal) {
+        return __.<A>start().call(service, childTraversal);
+    }
+
+    /**
+     * @see GraphTraversal#call(String, Map, Traversal)
+     */
+    public static <A, B> GraphTraversal<A, B> call(final String service, final Map params, final Traversal<?, Map<?,?>> childTraversal) {
+        return __.<A>start().call(service, params, childTraversal);
+    }
+
+    /**
+     * @see GraphTraversal#call(String, GValue, Traversal)
+     */
+    public static <A, B> GraphTraversal<A, B> call(final String service, final GValue<Map> params, final Traversal<?, Map<?,?>> childTraversal) {
+        return __.<A>start().call(service, params, childTraversal);
     }
 }

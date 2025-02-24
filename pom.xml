@@ -21,11 +21,11 @@ limitations under the License.
     <parent>
         <groupId>org.apache</groupId>
         <artifactId>apache</artifactId>
-        <version>21</version>
+        <version>27</version>
     </parent>
     <groupId>org.apache.tinkerpop</groupId>
     <artifactId>tinkerpop</artifactId>
-    <version>3.6.0-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Apache TinkerPop</name>
     <description>A Graph Computing Framework</description>
@@ -132,6 +132,7 @@ limitations under the License.
         <module>gremlin-javascript</module>
         <module>gremlin-python</module>
         <module>gremlin-dotnet</module>
+        <module>gremlin-go</module>
         <module>hadoop-gremlin</module>
         <module>spark-gremlin</module>
         <module>neo4j-gremlin</module>
@@ -139,9 +140,9 @@ limitations under the License.
         <module>gremlin-driver</module>
         <module>gremlin-console</module>
         <module>gremlin-server</module>
-        <module>gremlin-archetype</module>
         <module>gremlin-tools</module>
         <module>gremlint</module>
+        <module>gremlin-util</module>
     </modules>
     <scm>
         <connection>scm:git:git@github.com:apache/tinkerpop.git</connection>
@@ -149,23 +150,34 @@ limitations under the License.
         <url>https://github.com/apache/tinkerpop</url>
     </scm>
     <properties>
-        <commons.configuration.version>2.7</commons.configuration.version>
+        <antlr4.version>4.9.1</antlr4.version>
+        <caffeine.version>2.3.1</caffeine.version>
+        <commons.collections.version>4.4</commons.collections.version>
+        <commons.configuration.version>2.11.0</commons.configuration.version>
         <commons.lang.version>2.6</commons.lang.version>
         <commons.io.version>2.8.0</commons.io.version>
-        <commons.lang3.version>3.11</commons.lang3.version>
-        <commons.text.version>1.9</commons.text.version>
-        <groovy.version>2.5.14</groovy.version>
-        <hadoop.version>3.3.1</hadoop.version>
+        <commons.lang3.version>3.17.0</commons.lang3.version>
+        <commons.text.version>1.10.0</commons.text.version>
+        <cucumber.version>6.11.0</cucumber.version>
+        <exp4j.version>0.4.8</exp4j.version>
+        <groovy.version>4.0.25</groovy.version>
+        <guice.version>4.2.3</guice.version>
+        <hadoop.version>3.4.1</hadoop.version>
+        <hamcrest.version>2.2</hamcrest.version>
         <java.tuples.version>1.2</java.tuples.version>
-        <javadoc-plugin.version>3.1.0</javadoc-plugin.version>
-        <jcabi.version>1.1</jcabi.version>
-        <logback.version>1.2.3</logback.version>
+        <javadoc-plugin.version>3.3.1</javadoc-plugin.version>
+        <javapoet.version>1.13.0</javapoet.version>
+        <jbcrypt.version>0.4</jbcrypt.version>
+        <junit.version>4.13.1</junit.version>
+        <kerby.version>2.0.3</kerby.version>
+        <logback.version>1.3.15</logback.version>
         <metrics.version>3.0.2</metrics.version>
-        <netty.version>4.1.61.Final</netty.version>
-        <slf4j.version>1.7.25</slf4j.version>
-        <snakeyaml.version>1.27</snakeyaml.version>
-        <spark.version>3.1.2</spark.version>
-        <powermock.version>2.0.9</powermock.version>
+        <mockito.version>3.10.0</mockito.version>
+        <netty.version>4.1.101.Final</netty.version>
+        <slf4j.version>2.0.16</slf4j.version>
+        <snakeyaml.version>2.0</snakeyaml.version>
+        <spark.version>3.5.4</spark.version>
+        <awssdk.version>2.29.3</awssdk.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -185,6 +197,28 @@ limitations under the License.
         <log4j-silent.properties>file:target/test-classes/log4j-silent.properties</log4j-silent.properties>
 
         <muteTestLogs>false</muteTestLogs>
+
+        <!--
+        These options are necessary to run and pass the tests with JDK 17. There are some unexported APIs that we need
+        access to and we still rely on libraries that use deep reflection (notably Kryo). We can probably remove this
+        in the future when we don't need reflection and we turn this into a JPMS module.
+        -->
+        <jdk17JvmArgs>
+            -XX:+IgnoreUnrecognizedVMOptions
+            --add-exports=java.base/sun.nio.ch=ALL-UNNAMED
+            --add-exports=java.base/sun.security.x509=ALL-UNNAMED
+            --add-exports=java.base/sun.security.action=ALL-UNNAMED
+            --add-opens=java.base/java.io=ALL-UNNAMED
+            --add-opens=java.base/java.nio=ALL-UNNAMED
+            --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
+            --add-opens=java.base/java.lang=ALL-UNNAMED
+            --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+            --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+            --add-opens=java.base/java.util=ALL-UNNAMED
+            --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+            --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+            --add-opens=java.base/java.net=ALL-UNNAMED
+        </jdk17JvmArgs>
     </properties>
     <build>
         <directory>${basedir}/target</directory>
@@ -192,7 +226,7 @@ limitations under the License.
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>versions-maven-plugin</artifactId>
-                <version>2.7</version>
+                <version>2.16.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -211,10 +245,10 @@ limitations under the License.
                             <rules>
                                 <DependencyConvergence/>
                                 <requireJavaVersion>
-                                    <version>[1.8,12)</version>
+                                    <version>[1.8,18)</version>
                                 </requireJavaVersion>
                                 <requireMavenVersion>
-                                    <version>[3.3.9,)</version>
+                                    <version>[3.5.3,)</version>
                                 </requireMavenVersion>
                             </rules>
                         </configuration>
@@ -224,7 +258,7 @@ limitations under the License.
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>3.0.1</version>
+                <version>3.2.1</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -292,7 +326,7 @@ limitations under the License.
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>buildnumber-maven-plugin</artifactId>
-                <version>1.4</version>
+                <version>3.2.0</version>
                 <executions>
                     <execution>
                         <goals>
@@ -304,7 +338,7 @@ limitations under the License.
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.0.0</version>
+                <version>3.2.0</version>
                 <executions>
                     <execution>
                         <!-- source: https://stackoverflow.com/a/39139979/6753576 -->
@@ -340,6 +374,55 @@ limitations under the License.
                         </configuration>
                     </execution>
                     <execution>
+                        <!-- sets the true.when.is.prerelease.version property to true if a prerelease version was used,
+                            empty string otherwise -->
+                        <id>build-helper-regex-is-prerelease-version2</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>regex-property</goal>
+                        </goals>
+                        <configuration>
+                            <name>true.when.is.prerelease.version</name>
+                            <value>${only.when.is.prerelease.version}</value>
+                            <regex>${project.version}</regex>
+                            <replacement></replacement>
+                            <failIfNoMatch>false</failIfNoMatch>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <!-- sets the docker.tags.majorVersion.minorVersion property to
+                            ${parsedVersion.majorVersion}.${parsedVersion.minorVersion} unless a prerelease version was,
+                            used. If a prerelease is used, an empty string is assigned instead. -->
+                        <id>build-helper-regex-set-docker-version-tag</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>regex-property</goal>
+                        </goals>
+                        <configuration>
+                            <name>docker.tags.majorVersion.minorVersion</name>
+                            <value>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}${true.when.is.prerelease.version}</value>
+                            <regex>.*true</regex>
+                            <replacement></replacement>
+                            <failIfNoMatch>false</failIfNoMatch>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <!-- sets the docker.tags.latest property to "latest" unless a prerelease version was,
+                            used. If a prerelease is used, an empty string is assigned instead. -->
+                        <id>build-helper-regex-set-docker-latest-tag</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>regex-property</goal>
+                        </goals>
+                        <configuration>
+                            <name>docker.tags.latest</name>
+                            <value>latest${true.when.is.prerelease.version}</value>
+                            <regex>.*true</regex>
+                            <replacement></replacement>
+                            <failIfNoMatch>false</failIfNoMatch>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>parse-version</id>
                         <goals>
                             <goal>parse-version</goal>
@@ -350,12 +433,12 @@ limitations under the License.
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.0.2</version>
                 <configuration>
                     <archive>
                         <manifestEntries>
                             <version>${project.version}</version>
                             <hash>${buildNumber}</hash>
+                            <tinkerpop-version>${project.version}</tinkerpop-version>
                         </manifestEntries>
                     </archive>
                 </configuration>
@@ -389,12 +472,14 @@ limitations under the License.
                         <exclude>.repository/**</exclude>
                         <exclude>**/target/**</exclude>
                         <exclude>data/*.txt</exclude>
-                        <exclude>bin/gremlin.sh</exclude>
+                        <exclude>**/bin/gremlin.sh</exclude>
                         <exclude>docs/static/**</exclude>
+                        <exclude>docs/original/**</exclude>
                         <exclude>docs/site/home/css/**</exclude>
                         <exclude>docs/site/home/js/**</exclude>
                         <exclude>docs/gremlint/build/**</exclude>
                         <exclude>docs/gremlint/public/CNAME</exclude>
+                        <exclude>gremlin-console/bin/gremlin.sh</exclude>
                         <exclude>**/*.kryo</exclude>
                         <exclude>**/*.gbin</exclude>
                         <exclude>**/*.iml</exclude>
@@ -402,8 +487,10 @@ limitations under the License.
                         <exclude>**/*.xml</exclude>
                         <exclude>**/*.ldjson</exclude>
                         <exclude>**/*.graffle</exclude>
+                        <exclude>**/*.svg</exclude>
                         <exclude>**/goal.txt</exclude>
                         <exclude>**/src/main/resources/META-INF/services/**</exclude>
+                        <exclude>**/src/test/resources/mockito-extensions/**</exclude>
                         <exclude>**/src/test/resources/META-INF/services/**</exclude>
                         <exclude>**/src/test/resources/cucumber.properties</exclude>
                         <exclude>**/src/test/resources/incorrect-traversals.txt</exclude>
@@ -426,17 +513,27 @@ limitations under the License.
                         <exclude>**/NuGet.Config</exclude>
                         <exclude>**/*.nuspec</exclude>
                         <exclude>**/BenchmarkDotNet.Artifacts/**</exclude>
+                        <exclude>**/.nvmrc</exclude>
+                        <exclude>**/.yarnrc.yml</exclude>
+                        <exclude>**/yarn.lock</exclude>
                         <exclude>**/node/**</exclude>
                         <exclude>**/node_modules/**</exclude>
                         <exclude>**/npm-debug.log</exclude>
+                        <exclude>**/build/**</exclude>
                         <!-- javascript docs/lib -->
                         <exclude>**/doc/**</exclude>
                         <exclude>**/lib/**</exclude>
+                        <exclude>**/.env</exclude>
                         <exclude>**/.prettierrc</exclude>
                         <exclude>**/_site/**</exclude>
                         <exclude>**/.pytest_cache/**</exclude>
                         <exclude>**/venv/**</exclude>
+                        <exclude>**/.eggs/**</exclude>
+                        <exclude>**/gremlinpython.egg-info/**</exclude>
                         <exclude>**/docfx/**</exclude>
+                        <exclude>**/go.sum</exclude>
+                        <exclude>**/coverage.out</exclude>
+                        <exclude>**/gremlinconsoletest.egg-info/**</exclude>
                     </excludes>
                     <licenses>
                         <license implementation="org.apache.rat.analysis.license.ApacheSoftwareLicense20"/>
@@ -465,9 +562,26 @@ limitations under the License.
                 </configuration>
             </plugin>
         </plugins>
+
         <pluginManagement>
             <plugins>
-                <!-- there is a jdk11 profile that will be enabled if built with that version - these settings will be overridden -->
+                <plugin>
+                    <groupId>com.google.code.maven-replacer-plugin</groupId>
+                    <artifactId>replacer</artifactId>
+                    <version>1.5.3</version>
+                    <executions>
+                        <execution>
+                            <phase>generate-sources</phase>
+                            <goals>
+                                <goal>replace</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <basedir>${basedir}</basedir>
+                    </configuration>
+                </plugin>
+                <!-- there is a jdk11 profile that will be enabled if built with that version - these settings will be overriden -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
@@ -483,7 +597,7 @@ limitations under the License.
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-deploy-plugin</artifactId>
-                    <version>2.8.2</version>
+                    <version>3.0.0</version>
                 </plugin>
                 <!-- reverted surefire to 2.21.0 for performance reasons. 2.22.2 required forkCount=1 and
                      reuseForks=true which seemed to more the double the build time. there are only milestone
@@ -508,8 +622,10 @@ limitations under the License.
                         <argLine>
                             -Dlogback.configuration=${logback-test.properties}
                             -Dlog4j.configuration=${log4j-test.properties}
+                            -Dslf4j.provider=ch.qos.logback.classic.spi.LogbackServiceProvider
                             -Dbuild.dir=${project.build.directory}
                             -Dis.testing=true -Djava.net.preferIPv4Stack=true ${suresafeArgs}
+                            ${jdk17JvmArgs}
                         </argLine>
                         <trimStackTrace>false</trimStackTrace>
                         <excludes>
@@ -535,9 +651,11 @@ limitations under the License.
                                 <argLine>
                                     -Dlogback.configuration=${logback-test.properties}
                                     -Dlog4j.configuration=${log4j-test.properties}
+                                    -Dslf4j.provider=ch.qos.logback.classic.spi.LogbackServiceProvider
                                     -Dhost=localhost -Dport=8182
                                     -Dbuild.dir=${project.build.directory} -Dis.testing=true
                                     -Djava.net.preferIPv4Stack=true ${suresafeArgs}
+                                    ${jdk17JvmArgs}
                                 </argLine>
                                 <forkCount>1</forkCount>
                                 <reuseForks>false</reuseForks>
@@ -561,7 +679,7 @@ limitations under the License.
                 <plugin>
                     <groupId>org.asciidoctor</groupId>
                     <artifactId>asciidoctor-maven-plugin</artifactId>
-                    <version>1.5.8</version>
+                    <version>2.2.4</version>
                 </plugin>
                 <plugin>
                     <artifactId>maven-resources-plugin</artifactId>
@@ -583,7 +701,7 @@ limitations under the License.
                 <plugin>
                     <groupId>org.codehaus.gmavenplus</groupId>
                     <artifactId>gmavenplus-plugin</artifactId>
-                    <version>1.11.0</version>
+                    <version>2.1.0</version>
                     <configuration>
                         <targetBytecode>1.8</targetBytecode>
                     </configuration>
@@ -591,29 +709,30 @@ limitations under the License.
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-shade-plugin</artifactId>
-                    <version>3.2.4</version>
+                    <version>3.6.0</version>
+                    <configuration>
+                        <createDependencyReducedPom>false</createDependencyReducedPom>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-assembly-plugin</artifactId>
-                    <version>3.1.1</version>
+                    <version>3.3.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>3.0.2</version>
+                    <version>3.2.0</version>
                 </plugin>
-                <!-- can't upgrade past 1.4.6 until we enforce maven 3.5.2 or better
-                     https://github.com/spotify/dockerfile-maven/issues/252 -->
                 <plugin>
-                    <groupId>com.spotify</groupId>
-                    <artifactId>dockerfile-maven-plugin</artifactId>
-                    <version>1.4.6</version>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>docker-maven-plugin</artifactId>
+                    <version>0.45.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-antrun-plugin</artifactId>
-                    <version>1.8</version>
+                    <version>3.1.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -648,16 +767,10 @@ limitations under the License.
                 <artifactId>commons-text</artifactId>
                 <version>${commons.text.version}</version>
             </dependency>
-            <!-- commons-configuration2 requires beanutils because we rely on file loaders -->
             <dependency>
-                <groupId>commons-beanutils</groupId>
-                <artifactId>commons-beanutils</artifactId>
-                <version>1.9.4</version>
-            </dependency>
-            <dependency>
-                <groupId>commons-collections</groupId>
-                <artifactId>commons-collections</artifactId>
-                <version>3.2.2</version>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-collections4</artifactId>
+                <version>${commons.collections.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
@@ -734,7 +847,7 @@ limitations under the License.
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
-                <version>4.13.1</version>
+                <version>${junit.version}</version>
                 <exclusions>
                     <exclusion>
                         <groupId>org.hamcrest</groupId>
@@ -745,7 +858,7 @@ limitations under the License.
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-core</artifactId>
-                <version>3.3.3</version>
+                <version>${mockito.version}</version>
                 <exclusions>
                     <exclusion>
                         <groupId>org.hamcrest</groupId>
@@ -756,51 +869,17 @@ limitations under the License.
             <dependency>
                 <groupId>org.objenesis</groupId>
                 <artifactId>objenesis</artifactId>
-                <version>2.4</version>
-            </dependency>
-            <dependency>
-                <groupId>org.powermock</groupId>
-                <artifactId>powermock-module-junit4</artifactId>
-                <version>${powermock.version}</version>
-                <scope>test</scope>
-                <exclusions>
-                    <!-- conflict with mockito - excluding from the mockito side doesn't work -->
-                    <exclusion>
-                        <groupId>net.bytebuddy</groupId>
-                        <artifactId>byte-buddy</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>net.bytebuddy</groupId>
-                        <artifactId>byte-buddy-agent</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.powermock</groupId>
-                <artifactId>powermock-api-mockito2</artifactId>
-                <version>${powermock.version}</version>
-                <scope>test</scope>
-                <exclusions>
-                    <!-- conflict with mockito - excluding from the mockito side doesn't work -->
-                    <exclusion>
-                        <groupId>net.bytebuddy</groupId>
-                        <artifactId>byte-buddy</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>net.bytebuddy</groupId>
-                        <artifactId>byte-buddy-agent</artifactId>
-                    </exclusion>
-                </exclusions>
+                <version>3.3</version>
             </dependency>
             <dependency>
                 <groupId>org.hamcrest</groupId>
                 <artifactId>hamcrest</artifactId>
-                <version>2.2</version>
+                <version>${hamcrest.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.hakky54</groupId>
                 <artifactId>logcaptor</artifactId>
-                <version>2.6.1</version>
+                <version>2.7.10</version>
             </dependency>
             <dependency>
                 <groupId>ch.qos.logback</groupId>
@@ -813,14 +892,9 @@ limitations under the License.
                 <version>${slf4j.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>jcl-over-slf4j</artifactId>
-                <version>${slf4j.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.5</version>
+                <version>0.8.8</version>
             </dependency>
             <dependency>
                 <groupId>commons-io</groupId>
@@ -836,11 +910,10 @@ limitations under the License.
     </dependencyManagement>
 
     <profiles>
-
         <profile>
             <id>jdk11</id>
             <activation>
-                <jdk>11</jdk>
+                <jdk>[11,18)</jdk>
             </activation>
             <properties>
                 <suresafeArgs>--illegal-access=permit</suresafeArgs>
@@ -985,6 +1058,8 @@ limitations under the License.
                                         <stylesheet>tinkerpop.css</stylesheet>
                                         <source-highlighter>coderay</source-highlighter>
                                         <basedir>${project.basedir}</basedir>
+                                        <docinfo>shared</docinfo>
+                                        <docinfodir>${project.basedir}/docs/src</docinfodir>
                                     </attributes>
                                 </configuration>
                             </execution>
@@ -1010,6 +1085,8 @@ limitations under the License.
                                         <stylesheet>tinkerpop.css</stylesheet>
                                         <source-highlighter>coderay</source-highlighter>
                                         <basedir>${project.basedir}</basedir>
+                                        <docinfo>shared</docinfo>
+                                        <docinfodir>${project.basedir}/docs/src</docinfodir>
                                     </attributes>
                                 </configuration>
                             </execution>
@@ -1035,6 +1112,8 @@ limitations under the License.
                                         <stylesheet>tinkerpop.css</stylesheet>
                                         <source-highlighter>coderay</source-highlighter>
                                         <basedir>${project.basedir}</basedir>
+                                        <docinfo>shared</docinfo>
+                                        <docinfodir>${project.basedir}/docs/src</docinfodir>
                                     </attributes>
                                 </configuration>
                             </execution>
@@ -1060,6 +1139,8 @@ limitations under the License.
                                         <stylesheet>tinkerpop.css</stylesheet>
                                         <source-highlighter>coderay</source-highlighter>
                                         <basedir>${project.basedir}</basedir>
+                                        <docinfo>shared</docinfo>
+                                        <docinfodir>${project.basedir}/docs/src</docinfodir>
                                     </attributes>
                                 </configuration>
                             </execution>
@@ -1085,6 +1166,8 @@ limitations under the License.
                                         <stylesheet>tinkerpop.css</stylesheet>
                                         <source-highlighter>coderay</source-highlighter>
                                         <basedir>${project.basedir}</basedir>
+                                        <docinfo>shared</docinfo>
+                                        <docinfodir>${project.basedir}/docs/src</docinfodir>
                                     </attributes>
                                 </configuration>
                             </execution>
@@ -1110,6 +1193,8 @@ limitations under the License.
                                         <stylesheet>tinkerpop.css</stylesheet>
                                         <source-highlighter>coderay</source-highlighter>
                                         <basedir>${project.basedir}</basedir>
+                                        <docinfo>shared</docinfo>
+                                        <docinfodir>${project.basedir}/docs/src</docinfodir>
                                     </attributes>
                                 </configuration>
                             </execution>
@@ -1135,6 +1220,8 @@ limitations under the License.
                                         <stylesheet>tinkerpop.css</stylesheet>
                                         <source-highlighter>coderay</source-highlighter>
                                         <basedir>${project.basedir}</basedir>
+                                        <docinfo>shared</docinfo>
+                                        <docinfodir>${project.basedir}/docs/src</docinfodir>
                                     </attributes>
                                 </configuration>
                             </execution>
@@ -1160,6 +1247,8 @@ limitations under the License.
                                         <stylesheet>tinkerpop.css</stylesheet>
                                         <source-highlighter>coderay</source-highlighter>
                                         <basedir>${project.basedir}</basedir>
+                                        <docinfo>shared</docinfo>
+                                        <docinfodir>${project.basedir}/docs/src</docinfodir>
                                     </attributes>
                                 </configuration>
                             </execution>
@@ -1183,6 +1272,8 @@ limitations under the License.
                                         <stylesheet>tinkerpop.css</stylesheet>
                                         <source-highlighter>coderay</source-highlighter>
                                         <basedir>${project.basedir}</basedir>
+                                        <docinfo>shared</docinfo>
+                                        <docinfodir>${project.basedir}/docs/src</docinfodir>
                                     </attributes>
                                 </configuration>
                             </execution>
@@ -1207,6 +1298,8 @@ limitations under the License.
                                         <stylesheet>tinkerpop.css</stylesheet>
                                         <source-highlighter>coderay</source-highlighter>
                                         <basedir>${project.basedir}</basedir>
+                                        <docinfo>shared</docinfo>
+                                        <docinfodir>${project.basedir}/docs/src</docinfodir>
                                     </attributes>
                                 </configuration>
                             </execution>
@@ -1231,6 +1324,8 @@ limitations under the License.
                                         <stylesheet>tinkerpop.css</stylesheet>
                                         <source-highlighter>coderay</source-highlighter>
                                         <basedir>${project.basedir}</basedir>
+                                        <docinfo>shared</docinfo>
+                                        <docinfodir>${project.basedir}/docs/src</docinfodir>
                                     </attributes>
                                 </configuration>
                             </execution>
@@ -1254,6 +1349,8 @@ limitations under the License.
                                         <stylesheet>tinkerpop.css</stylesheet>
                                         <source-highlighter>coderay</source-highlighter>
                                         <basedir>${project.basedir}</basedir>
+                                        <docinfo>shared</docinfo>
+                                        <docinfodir>${project.basedir}/docs/src</docinfodir>
                                     </attributes>
                                 </configuration>
                             </execution>
@@ -1312,12 +1409,264 @@ limitations under the License.
                                     <overview>${basedir}/docs/javadoc/overview.html</overview>
                                     <quiet>true</quiet>
                                     <sourcepath>
-                                        gremlin-core/src/main/java:gremlin-driver/src/main/java:gremlin-groovy/src/main/java:gremlin-python/src/main/java:gremlin-server/src/main/java:gremlin-test/src/main/java:hadoop-gremlin/src/main/java:neo4j-gremlin/src/main/java:spark-gremlin/src/main/java:tinkergraph-gremlin/src/main/java
+                                        gremlin-annotations/src/main/java:gremlin-language/target/generated-sources/antlr4:gremlin-core/src/main/java:gremlin-driver/src/main/java:gremlin-groovy/src/main/java:gremlin-groovy/target/generated-sources/annotations:gremlin-groovy/target/generated-sources/groovy-stubs/main:gremlin-server/src/main/java:gremlin-test/src/main/java:tinkergraph-gremlin/src/main/java:gremlin-util/src/main/java
                                     </sourcepath>
-                                    <includeDependencySources>true</includeDependencySources>
                                     <dependencySourceIncludes>
                                         <dependencySourceInclude>org.apache.tinkerpop:*</dependencySourceInclude>
                                     </dependencySourceIncludes>
+                                    <additionalDependencies>
+                                        <additionalDependency>
+                                            <groupId>com.github.ben-manes.caffeine</groupId>
+                                            <artifactId>caffeine</artifactId>
+                                            <version>${caffeine.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-buffer</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-codec</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-codec-http</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.mindrot</groupId>
+                                            <artifactId>jbcrypt</artifactId>
+                                            <version>${jbcrypt.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-common</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-handler</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-transport</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-transport-classes-epoll</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.antlr</groupId>
+                                            <artifactId>antlr4</artifactId>
+                                            <version>${antlr4.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.antlr</groupId>
+                                            <artifactId>antlr4-runtime</artifactId>
+                                            <version>${antlr4.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>com.google.inject</groupId>
+                                            <artifactId>guice</artifactId>
+                                            <version>${guice.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.mockito</groupId>
+                                            <artifactId>mockito-core</artifactId>
+                                            <version>${mockito.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.commons</groupId>
+                                            <artifactId>commons-configuration2</artifactId>
+                                            <version>${commons.configuration.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.commons</groupId>
+                                            <artifactId>commons-collections4</artifactId>
+                                            <version>${commons.collections.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.commons</groupId>
+                                            <artifactId>commons-text</artifactId>
+                                            <version>${commons.text.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>com.codahale.metrics</groupId>
+                                            <artifactId>metrics-core</artifactId>
+                                            <version>${metrics.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>com.codahale.metrics</groupId>
+                                            <artifactId>metrics-graphite</artifactId>
+                                            <version>${metrics.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>com.codahale.metrics</groupId>
+                                            <artifactId>metrics-ganglia</artifactId>
+                                            <version>${metrics.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>info.ganglia.gmetric4j</groupId>
+                                            <artifactId>gmetric4j</artifactId>
+                                            <version>1.0.10</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.hamcrest</groupId>
+                                            <artifactId>hamcrest</artifactId>
+                                            <version>${hamcrest.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.cucumber</groupId>
+                                            <artifactId>cucumber-core</artifactId>
+                                            <version>${cucumber.version}</version>
+                                        </additionalDependency>
+                                        <!-- datatable doesn't align with cucumber.version until 7.x -->
+                                        <additionalDependency>
+                                            <groupId>io.cucumber</groupId>
+                                            <artifactId>datatable</artifactId>
+                                            <version>4.1.0</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.cucumber</groupId>
+                                            <artifactId>cucumber-java</artifactId>
+                                            <version>${cucumber.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.cucumber</groupId>
+                                            <artifactId>cucumber-junit</artifactId>
+                                            <version>${cucumber.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.cucumber</groupId>
+                                            <artifactId>cucumber-guice</artifactId>
+                                            <version>${cucumber.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>junit</groupId>
+                                            <artifactId>junit</artifactId>
+                                            <version>${junit.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.kerby</groupId>
+                                            <artifactId>kerb-simplekdc</artifactId>
+                                            <version>${kerby.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.kerby</groupId>
+                                            <artifactId>kerb-server</artifactId>
+                                            <version>${kerby.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.kerby</groupId>
+                                            <artifactId>kerb-client</artifactId>
+                                            <version>${kerby.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.kerby</groupId>
+                                            <artifactId>kerb-common</artifactId>
+                                            <version>${kerby.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.kerby</groupId>
+                                            <artifactId>kerb-core</artifactId>
+                                            <version>${kerby.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.javatuples</groupId>
+                                            <artifactId>javatuples</artifactId>
+                                            <version>${java.tuples.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.tinkerpop</groupId>
+                                            <artifactId>gremlin-shaded</artifactId>
+                                            <version>${project.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.groovy</groupId>
+                                            <artifactId>groovy</artifactId>
+                                            <version>${groovy.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.groovy</groupId>
+                                            <artifactId>groovy-jsr223</artifactId>
+                                            <version>${groovy.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.groovy</groupId>
+                                            <artifactId>groovy-groovysh</artifactId>
+                                            <version>${groovy.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.commons</groupId>
+                                            <artifactId>commons-lang3</artifactId>
+                                            <version>${commons.lang3.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>commons-lang</groupId>
+                                            <artifactId>commons-lang</artifactId>
+                                            <version>${commons.lang.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>com.squareup</groupId>
+                                            <artifactId>javapoet</artifactId>
+                                            <version>${javapoet.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>net.objecthunter</groupId>
+                                            <artifactId>exp4j</artifactId>
+                                            <version>${exp4j.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.slf4j</groupId>
+                                            <artifactId>slf4j-api</artifactId>
+                                            <version>${slf4j.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.yaml</groupId>
+                                            <artifactId>snakeyaml</artifactId>
+                                            <version>${snakeyaml.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>software.amazon.awssdk</groupId>
+                                            <artifactId>http-auth-aws</artifactId>
+                                            <version>${awssdk.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>software.amazon.awssdk</groupId>
+                                            <artifactId>http-auth-spi</artifactId>
+                                            <version>${awssdk.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>software.amazon.awssdk</groupId>
+                                            <artifactId>http-client-spi</artifactId>
+                                            <version>${awssdk.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>software.amazon.awssdk</groupId>
+                                            <artifactId>auth</artifactId>
+                                            <version>${awssdk.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>software.amazon.awssdk</groupId>
+                                            <artifactId>utils</artifactId>
+                                            <version>${awssdk.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>software.amazon.awssdk</groupId>
+                                            <artifactId>protocol-core</artifactId>
+                                            <version>${awssdk.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apiguardian</groupId>
+                                            <artifactId>apiguardian-api</artifactId>
+                                            <version>1.1.2</version>
+                                        </additionalDependency>
+                                    </additionalDependencies>
                                 </configuration>
                             </execution>
                             <execution>
@@ -1333,7 +1682,7 @@ limitations under the License.
                                     <overview>${basedir}/docs/javadoc/overview.html</overview>
                                     <quiet>true</quiet>
                                     <sourcepath>
-                                        gremlin-core/src/main/java:gremlin-driver/src/main/java
+                                        gremlin-language/target/generated-sources/antlr4:gremlin-core/src/main/java:gremlin-driver/src/main/java:gremlin-util/src/main/java
                                     </sourcepath>
                                     <sourceFileIncludes>
                                         <!-- jsr223 -->
@@ -1404,11 +1753,66 @@ limitations under the License.
                                         <!-- driver -->
                                         <include>org/apache/tinkerpop/gremlin/driver/*.java
                                         </include>
+                                        <!-- util -->
+                                        <include>org/apache/tinkerpop/gremlin/util/*.java
+                                        </include>
                                     </sourceFileIncludes>
-                                    <!-- add dependencies as necessary here - not sure why this is necessary, but assume
-                                         it is related to the <sourceFileIncludes> as ERROR messages do not appear on
-                                         build for the "full" javadocs -->
                                     <additionalDependencies>
+                                        <additionalDependency>
+                                            <groupId>org.antlr</groupId>
+                                            <artifactId>antlr4</artifactId>
+                                            <version>${antlr4.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.antlr</groupId>
+                                            <artifactId>antlr4-runtime</artifactId>
+                                            <version>${antlr4.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.commons</groupId>
+                                            <artifactId>commons-text</artifactId>
+                                            <version>${commons.text.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-buffer</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-codec</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-codec-http</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-common</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-handler</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-transport</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>io.netty</groupId>
+                                            <artifactId>netty-transport-classes-epoll</artifactId>
+                                            <version>${netty.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>org.apache.commons</groupId>
+                                            <artifactId>commons-collections4</artifactId>
+                                            <version>${commons.collections.version}</version>
+                                        </additionalDependency>
                                         <additionalDependency>
                                             <groupId>org.apache.commons</groupId>
                                             <artifactId>commons-configuration2</artifactId>
@@ -1425,16 +1829,9 @@ limitations under the License.
                                             <version>${project.version}</version>
                                         </additionalDependency>
                                         <additionalDependency>
-                                            <groupId>org.codehaus.groovy</groupId>
+                                            <groupId>org.apache.groovy</groupId>
                                             <artifactId>groovy-groovysh</artifactId>
                                             <version>${groovy.version}</version>
-                                            <classifier>indy</classifier>
-                                        </additionalDependency>
-                                        <additionalDependency>
-                                            <groupId>org.codehaus.groovy</groupId>
-                                            <artifactId>groovy-json</artifactId>
-                                            <version>${groovy.version}</version>
-                                            <classifier>indy</classifier>
                                         </additionalDependency>
                                         <additionalDependency>
                                             <groupId>org.apache.commons</groupId>
@@ -1445,6 +1842,16 @@ limitations under the License.
                                             <groupId>commons-lang</groupId>
                                             <artifactId>commons-lang</artifactId>
                                             <version>${commons.lang.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>com.squareup</groupId>
+                                            <artifactId>javapoet</artifactId>
+                                            <version>${javapoet.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>net.objecthunter</groupId>
+                                            <artifactId>exp4j</artifactId>
+                                            <version>${exp4j.version}</version>
                                         </additionalDependency>
                                         <additionalDependency>
                                             <groupId>org.slf4j</groupId>
@@ -1462,9 +1869,34 @@ limitations under the License.
                                             <version>${snakeyaml.version}</version>
                                         </additionalDependency>
                                         <additionalDependency>
-                                            <groupId>com.jcabi</groupId>
-                                            <artifactId>jcabi-manifests</artifactId>
-                                            <version>${jcabi.version}</version>
+                                            <groupId>software.amazon.awssdk</groupId>
+                                            <artifactId>http-auth-aws</artifactId>
+                                            <version>${awssdk.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>software.amazon.awssdk</groupId>
+                                            <artifactId>http-auth-spi</artifactId>
+                                            <version>${awssdk.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>software.amazon.awssdk</groupId>
+                                            <artifactId>http-client-spi</artifactId>
+                                            <version>${awssdk.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>software.amazon.awssdk</groupId>
+                                            <artifactId>auth</artifactId>
+                                            <version>${awssdk.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>software.amazon.awssdk</groupId>
+                                            <artifactId>utils</artifactId>
+                                            <version>${awssdk.version}</version>
+                                        </additionalDependency>
+                                        <additionalDependency>
+                                            <groupId>software.amazon.awssdk</groupId>
+                                            <artifactId>protocol-core</artifactId>
+                                            <version>${awssdk.version}</version>
                                         </additionalDependency>
                                     </additionalDependencies>
                                 </configuration>
@@ -1538,8 +1970,10 @@ limitations under the License.
                             <argLine>
                                 -Dlogback.configuration=${logback-silent.properties}
                                 -Dlog4j.configuration=${log4j-silent.properties}
+                                -Dslf4j.provider=ch.qos.logback.classic.spi.LogbackServiceProvider
                                 -Dbuild.dir=${project.build.directory} -Dis.testing=true
                                 -Djava.net.preferIPv4Stack=true ${suresafeArgs}
+                                ${jdk17JvmArgs}
                             </argLine>
                             <excludes>
                                 <exclude>**/*IntegrateTest.java</exclude>
@@ -1563,7 +1997,7 @@ limitations under the License.
                     <plugin>
                         <artifactId>exec-maven-plugin</artifactId>
                         <groupId>org.codehaus.mojo</groupId>
-                        <version>1.6.0</version>
+                        <version>3.5.0</version>
                         <inherited>false</inherited>
                         <executions>
                             <execution>
@@ -1619,6 +2053,13 @@ limitations under the License.
                                 </configuration>
                             </execution>
                             <execution>
+                                <id>report</id>
+                                <phase>install</phase>
+                                <goals>
+                                    <goal>report</goal>
+                                </goals>
+                            </execution>
+                            <execution>
                                 <id>prepare-it-agent</id>
                                 <phase>pre-integration-test</phase>
                                 <goals>
@@ -1636,8 +2077,9 @@ limitations under the License.
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
-                            <argLine>-Dlogback.configuration=${logback-test.properties}
+                            <argLine>@{surefireArgLine} -Dlogback.configuration=${logback-test.properties}
                                 -Dlog4j.configuration=${log4j-test.properties}
+                                -Dslf4j.provider=ch.qos.logback.classic.spi.LogbackServiceProvider
                                 -Dbuild.dir=${project.build.directory} -Dis.testing=true ${suresafeArgs}
                                 -Djava.net.preferIPv4Stack=true
                             </argLine>
@@ -1647,8 +2089,9 @@ limitations under the License.
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <configuration>
-                            <argLine>-Dlogback.configuration=${logback-test.properties}
+                            <argLine>@{failsafeArgLine} -Dlogback.configuration=${logback-test.properties}
                                 -Dlog4j.configuration=${log4j-test.properties} -Dhost=localhost -Dport=8182
+                                -Dslf4j.provider=ch.qos.logback.classic.spi.LogbackServiceProvider
                                 -Dbuild.dir=${project.build.directory} -Dis.testing=true ${suresafeArgs}
                                 -Djava.net.preferIPv4Stack=true
                             </argLine>

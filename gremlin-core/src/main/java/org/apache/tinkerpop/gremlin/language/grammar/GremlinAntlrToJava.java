@@ -19,14 +19,17 @@
 package org.apache.tinkerpop.gremlin.language.grammar;
 
 import org.antlr.v4.runtime.tree.ParseTree;
-import org.apache.tinkerpop.gremlin.process.traversal.Bytecode;
+import org.apache.tinkerpop.gremlin.process.traversal.GremlinLang;
+import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalSource;
+import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.DefaultGraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Graph;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.util.empty.EmptyGraph;
 
 import java.util.function.Supplier;
@@ -36,7 +39,7 @@ import java.util.function.Supplier;
  * as that instance may spawn specific {@link Traversal} or {@link TraversalSource} types. A new instance should be
  * created for each parse execution.
  */
-public class GremlinAntlrToJava extends GremlinBaseVisitor<Object> {
+public class GremlinAntlrToJava extends DefaultGremlinBaseVisitor<Object> {
 
     /**
      * The {@link Graph} instance to which this instance is bound.
@@ -49,20 +52,25 @@ public class GremlinAntlrToJava extends GremlinBaseVisitor<Object> {
     final GraphTraversalSource g;
 
     /**
-     * A {@link GremlinBaseVisitor} that processes {@link TraversalSource} methods.
+     * A {@link DefaultGremlinBaseVisitor} that processes {@link TraversalSource} methods.
      */
-    final GremlinBaseVisitor<GraphTraversalSource> gvisitor;
+    final DefaultGremlinBaseVisitor<GraphTraversalSource> gvisitor;
 
     /**
-     * A {@link GremlinBaseVisitor} that processes {@link Traversal} methods and is meant to construct traversals
+     * A {@link DefaultGremlinBaseVisitor} that processes {@link Traversal} methods and is meant to construct traversals
      * anonymously.
      */
-    final GremlinBaseVisitor<GraphTraversal> tvisitor;
+    final DefaultGremlinBaseVisitor<GraphTraversal> tvisitor;
 
     /**
-     * A {@link GremlinBaseVisitor} that is meant to construct a list of traversals anonymously.
+     * A {@link DefaultGremlinBaseVisitor} that is meant to construct a list of traversals anonymously.
      */
-    final GremlinBaseVisitor<Traversal[]> tListVisitor;
+    final DefaultGremlinBaseVisitor<Traversal[]> tListVisitor;
+
+    /**
+     * Handles transactions.
+     */
+    final DefaultGremlinBaseVisitor<Void> txVisitor;
 
     /**
      * Creates a {@link GraphTraversal} implementation that is meant to be anonymous. This provides a way to change the
@@ -72,8 +80,33 @@ public class GremlinAntlrToJava extends GremlinBaseVisitor<Object> {
     final Supplier<GraphTraversal<?,?>> createAnonymous;
 
     /**
+     * Parses arguments, which may or may not be variables.
+     */
+    final ArgumentVisitor argumentVisitor;
+
+    /**
+     * Parses literals.
+     */
+    final GenericLiteralVisitor genericVisitor;
+
+    /**
+     * Parses {@link TraversalStrategy} instances.
+     */
+    final TraversalStrategyVisitor traversalStrategyVisitor;
+
+    /**
+     * Parses {@link P} instances.
+     */
+    final TraversalPredicateVisitor traversalPredicateVisitor;
+
+    /**
+     * Parses structure instances like {@link Vertex}.
+     */
+    final StructureElementVisitor structureVisitor;
+
+    /**
      * Constructs a new instance and is bound to an {@link EmptyGraph}. This form of construction is helpful for
-     * generating {@link Bytecode} or for various forms of testing. {@link Traversal} instances constructed from this
+     * generating {@link GremlinLang} or for various forms of testing. {@link Traversal} instances constructed from this
      * form will not be capable of iterating. Assumes that "g" is the name of the {@link GraphTraversalSource}.
      */
     public GremlinAntlrToJava() {
@@ -89,11 +122,28 @@ public class GremlinAntlrToJava extends GremlinBaseVisitor<Object> {
     }
 
     /**
+     * Constructs a new instance that is bound to the specified {@link Graph} instance. Assumes that "g" is the name
+     * of the {@link GraphTraversalSource}.
+     */
+    public GremlinAntlrToJava(final Graph graph, final VariableResolver variableResolver) {
+        this(GraphTraversalSourceVisitor.TRAVERSAL_ROOT, graph, __::start, null, variableResolver);
+    }
+
+    /**
      * Constructs a new instance that is bound to the specified {@link GraphTraversalSource} and thus spawns the
      * {@link Traversal} from this "g" rather than from a fresh one constructed from the {@link Graph} instance.
      */
     public GremlinAntlrToJava(final GraphTraversalSource g) {
         this(g, __::start);
+    }
+
+    /**
+     * Constructs a new instance that is bound to the specified {@link GraphTraversalSource} and thus spawns the
+     * {@link Traversal} from this "g" rather than from a fresh one constructed from the {@link Graph} instance.
+     * Allows for specification of a {@link VariableResolver} to allow parameters to be resolved.
+     */
+    public GremlinAntlrToJava(final GraphTraversalSource g, final VariableResolver variableResolver) {
+        this(GraphTraversalSourceVisitor.TRAVERSAL_ROOT, g.getGraph(), __::start, g, variableResolver);
     }
 
     /**
@@ -110,7 +160,7 @@ public class GremlinAntlrToJava extends GremlinBaseVisitor<Object> {
      * {@link Traversal} from this "g" rather than from a fresh one constructed from the {@link Graph} instance.
      */
     protected GremlinAntlrToJava(final GraphTraversalSource g, final Supplier<GraphTraversal<?,?>> createAnonymous) {
-        this(GraphTraversalSourceVisitor.TRAVERSAL_ROOT, g.getGraph(), createAnonymous, g);
+        this(GraphTraversalSourceVisitor.TRAVERSAL_ROOT, g.getGraph(), createAnonymous, g, VariableResolver.NoVariableResolver.instance());
     }
 
     /**
@@ -121,19 +171,21 @@ public class GremlinAntlrToJava extends GremlinBaseVisitor<Object> {
      */
     protected GremlinAntlrToJava(final String traversalSourceName, final Graph graph,
                                  final Supplier<GraphTraversal<?,?>> createAnonymous) {
-        this(traversalSourceName, graph, createAnonymous, null);
+        this(traversalSourceName, graph, createAnonymous, null, VariableResolver.NoVariableResolver.instance());
     }
 
     /**
      * Constructs a new instance that is bound to the specified {@link Graph} instance with an override to using
      * {@link __} for constructing anonymous {@link Traversal} instances. If the {@link GraphTraversalSource} is
-     * provided then the {@link Traversal} will spawn from it as opposed to a fresh one from the {@link Graph} instance.
+     * provided then the {@link Traversal} will spawn from it as opposed to a fresh one from the {@link Graph}
+     * instance. When a {@link VariableResolver} is supplied it will attempt to resolve parameters in the Gremlin to
+     * objects.
      *
      * @param traversalSourceName The name of the traversal source which will be "g" if not specified.
      */
     protected GremlinAntlrToJava(final String traversalSourceName, final Graph graph,
                                  final Supplier<GraphTraversal<?,?>> createAnonymous,
-                                 final GraphTraversalSource g) {
+                                 final GraphTraversalSource g, final VariableResolver variableResolver) {
         this.g = g;
         this.graph = graph;
         this.gvisitor = new GraphTraversalSourceVisitor(
@@ -141,6 +193,12 @@ public class GremlinAntlrToJava extends GremlinBaseVisitor<Object> {
         this.tvisitor = new TraversalRootVisitor(this);
         this.tListVisitor = new NestedTraversalSourceListVisitor(this);
         this.createAnonymous = createAnonymous;
+        this.txVisitor = new TraversalSourceTxVisitor(g, this);
+        this.traversalPredicateVisitor = new TraversalPredicateVisitor(this);
+        this.traversalStrategyVisitor = new TraversalStrategyVisitor(this);
+        this.structureVisitor = new StructureElementVisitor(this);
+        this.genericVisitor = new GenericLiteralVisitor(this);
+        this.argumentVisitor = new ArgumentVisitor(variableResolver, this);
     }
 
     /**
@@ -157,7 +215,8 @@ public class GremlinAntlrToJava extends GremlinBaseVisitor<Object> {
                     return gvisitor.visitTraversalSource((GremlinParser.TraversalSourceContext) firstChild);
                 } else {
                     // handle traversalSource DOT transactionPart
-                    throw new GremlinParserException("Transaction operation is not supported yet");
+                    // third child is the tx info
+                    return txVisitor.visitTransactionPart((GremlinParser.TransactionPartContext) ctx.getChild(2));
                 }
             } else if (firstChild instanceof GremlinParser.EmptyQueryContext) {
                 // handle empty query
@@ -183,7 +242,8 @@ public class GremlinAntlrToJava extends GremlinBaseVisitor<Object> {
     /**
      * {@inheritDoc}
      */
-    @Override public Object visitQueryList(final GremlinParser.QueryListContext ctx) {
+    @Override
+    public Object visitQueryList(final GremlinParser.QueryListContext ctx) {
         return visitChildren(ctx);
     }
 

@@ -48,31 +48,29 @@ import org.junit.AssumptionViolatedException;
 import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static org.apache.tinkerpop.gremlin.LoadGraphWith.GraphData;
 
 @RunWith(Cucumber.class)
 @CucumberOptions(
-        tags = "not @RemoteOnly",
+        tags = "not @RemoteOnly and not @StepDrop and not @StepV and not @StepE and not @StepIndex and not @StepInject and " +
+               "not @GraphComputerVerificationOneBulk and not @GraphComputerVerificationStrategyNotSupported and " +
+               "not @GraphComputerVerificationMidVNotSupported and not @GraphComputerVerificationElementSupported and " +
+               "not @GraphComputerVerificationInjectionNotSupported and " +
+               "not @GraphComputerVerificationStarGraphExceeded and not @GraphComputerVerificationReferenceOnly and " +
+               "not @TinkerServiceRegistry and not @InsertionOrderingRequired and not @WithElementIdStrategy",
         glue = { "org.apache.tinkerpop.gremlin.features" },
         objectFactory = GuiceFactory.class,
-        features = { "../gremlin-test/features" },
-        plugin = {"pretty", "junit:target/cucumber.xml"})
+        features = { "classpath:/org/apache/tinkerpop/gremlin/test/features" },
+        plugin = {"progress", "junit:target/cucumber.xml"})
 public class SparkGraphFeatureIntegrateTest {
     private static final int AVAILABLE_PROCESSORS = Runtime.getRuntime().availableProcessors();
 
     private static final String skipReasonLength = "Spark-Gremlin is OLAP-oriented and for OLTP operations, linear-scan joins are required. This particular tests takes many minutes to execute.";
-
-    /**
-     * May need to improve the definition of result equality with map&lt;list&gt; - TINKERPOP-2622
-     */
-    private static final String skipReasonOrdering = "There are some internal ordering issues with result where equality is not required but is being enforced";
 
     private static final List<Pair<String, String>> skip = new ArrayList<Pair<String,String>>() {{
         add(Pair.with("g_V_both_both_count", skipReasonLength));
@@ -88,26 +86,7 @@ public class SparkGraphFeatureIntegrateTest {
         add(Pair.with("g_V_repeatXbothXfollowedByXX_timesX2X_group_byXsongTypeX_byXcountX", skipReasonLength));
         add(Pair.with("g_V_repeatXbothXfollowedByXX_timesX2X_groupXaX_byXsongTypeX_byXcountX_capXaX", skipReasonLength));
         add(Pair.with("g_V_matchXa_followedBy_count_isXgtX10XX_b__a_0followedBy_count_isXgtX10XX_bX_count", skipReasonLength));
-        add(Pair.with("g_V_order_byXname_descX_barrier_dedup_age_name", skipReasonOrdering));
-        add(Pair.with("g_V_group_byXoutE_countX_byXnameX", skipReasonOrdering));
-        add(Pair.with("g_V_asXvX_mapXbothE_weight_foldX_sumXlocalX_asXsX_selectXv_sX_order_byXselectXsX_descX", skipReasonOrdering));
-        add(Pair.with("g_V_hasXlangX_groupXaX_byXlangX_byXnameX_out_capXaX", skipReasonOrdering));
-        add(Pair.with("g_V_group_byXageX", skipReasonOrdering));
-        add(Pair.with("g_V_order_byXoutE_count_descX", skipReasonOrdering));
-        add(Pair.with("g_V_both_both_dedup_byXoutE_countX_name", skipReasonOrdering));
-        add(Pair.with("g_V_mapXbothE_weight_foldX_order_byXsumXlocalX_descX", skipReasonOrdering));
-        add(Pair.with("g_V_hasLabelXsoftwareX_order_byXnameX_index_withXmapX", skipReasonOrdering));
     }};
-
-    private static final List<String> TAGS_TO_IGNORE = Arrays.asList(
-            "@StepDrop",
-            "@StepV",
-            "@StepIndex", // doesn't look like this works with Spark atm - doesn't serialize (IndexTest not in the ProcessComputerSuite)
-            "@GraphComputerVerificationOneBulk",
-            "@GraphComputerVerificationMidVNotSupported",
-            "@GraphComputerVerificationInjectionNotSupported",
-            "@GraphComputerVerificationStarGraphExceeded",
-            "@GraphComputerVerificationReferenceOnly");
 
     public static final class ServiceModule extends AbstractModule {
         @Override
@@ -156,10 +135,6 @@ public class SparkGraphFeatureIntegrateTest {
                     filter(s -> s.getValue0().equals(scenario.getName())).findFirst();
             if (skipped.isPresent())
                 throw new AssumptionViolatedException(skipped.get().getValue1());
-
-            final List<String> ignores = TAGS_TO_IGNORE.stream().filter(t -> scenario.getSourceTagNames().contains(t)).collect(Collectors.toList());
-            if (!ignores.isEmpty())
-                throw new AssumptionViolatedException(String.format("This scenario is not supported with GraphComputer: %s", ignores));
         }
 
         private static void readIntoGraph(final Graph graph, final GraphData graphData) {
@@ -186,6 +161,11 @@ public class SparkGraphFeatureIntegrateTest {
                 put(Constants.SPARK_KRYO_REGISTRATOR, GryoRegistrator.class.getCanonicalName());
                 put(Constants.SPARK_KRYO_REGISTRATION_REQUIRED, true);
             }};
+        }
+
+        @Override
+        public boolean useParametersLiterally() {
+            return false;
         }
     }
 

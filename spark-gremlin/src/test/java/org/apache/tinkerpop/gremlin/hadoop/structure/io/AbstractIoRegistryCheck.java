@@ -63,7 +63,7 @@ public abstract class AbstractIoRegistryCheck extends AbstractGremlinTest {
 
     private static final int NUMBER_OF_VERTICES = 1000;
 
-    public void checkGryoV1d0IoRegistryCompliance(final HadoopGraph graph, final Class<? extends GraphComputer> graphComputerClass) throws Exception {
+    public void checkGryoV1IoRegistryCompliance(final HadoopGraph graph, final Class<? extends GraphComputer> graphComputerClass) throws Exception {
         final File input = TestHelper.generateTempFile(this.getClass(), "gryo-io-registry", ".kryo");
         graph.configuration().setProperty(Constants.GREMLIN_HADOOP_GRAPH_READER, GryoInputFormat.class.getCanonicalName());
         graph.configuration().setProperty(Constants.GREMLIN_HADOOP_GRAPH_WRITER, GryoOutputFormat.class.getCanonicalName());
@@ -72,10 +72,10 @@ public abstract class AbstractIoRegistryCheck extends AbstractGremlinTest {
         graph.configuration().setProperty(IoRegistry.IO_REGISTRY, ToyIoRegistry.class.getCanonicalName());
         final GryoRecordWriter writer = new GryoRecordWriter(new DataOutputStream(new FileOutputStream(input)), ConfUtil.makeHadoopConfiguration(graph.configuration()));
         validateIoRegistryGraph(graph, graphComputerClass, writer);
-        assertTrue(input.delete());
+        input.deleteOnExit();
     }
 
-    public void checkGryoV3d0IoRegistryCompliance(final HadoopGraph graph, final Class<? extends GraphComputer> graphComputerClass) throws Exception {
+    public void checkGryoV3IoRegistryCompliance(final HadoopGraph graph, final Class<? extends GraphComputer> graphComputerClass) throws Exception {
         final File input = TestHelper.generateTempFile(this.getClass(), "gryo-io-registry", ".kryo");
         graph.configuration().setProperty(Constants.GREMLIN_HADOOP_GRAPH_READER, GryoInputFormat.class.getCanonicalName());
         graph.configuration().setProperty(Constants.GREMLIN_HADOOP_GRAPH_WRITER, GryoOutputFormat.class.getCanonicalName());
@@ -84,7 +84,7 @@ public abstract class AbstractIoRegistryCheck extends AbstractGremlinTest {
         graph.configuration().setProperty(IoRegistry.IO_REGISTRY, ToyIoRegistry.class.getCanonicalName());
         final GryoRecordWriter writer = new GryoRecordWriter(new DataOutputStream(new FileOutputStream(input)), ConfUtil.makeHadoopConfiguration(graph.configuration()));
         validateIoRegistryGraph(graph, graphComputerClass, writer);
-        assertTrue(input.delete());
+        input.deleteOnExit();
     }
 
     public void checkGraphSONIoRegistryCompliance(final HadoopGraph graph, final Class<? extends GraphComputer> graphComputerClass) throws Exception {
@@ -95,7 +95,7 @@ public abstract class AbstractIoRegistryCheck extends AbstractGremlinTest {
         graph.configuration().setProperty(IoRegistry.IO_REGISTRY, ToyIoRegistry.class.getCanonicalName());
         final GraphSONRecordWriter writer = new GraphSONRecordWriter(new DataOutputStream(new FileOutputStream(input)), ConfUtil.makeHadoopConfiguration(graph.configuration()));
         validateIoRegistryGraph(graph, graphComputerClass, writer);
-        assertTrue(input.delete());
+        input.deleteOnExit();
     }
 
     private void validateIoRegistryGraph(final HadoopGraph graph,

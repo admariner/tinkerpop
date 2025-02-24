@@ -28,11 +28,13 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.CollectingBarrie
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.ProjectedTraverser;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
+import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalProduct;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalUtil;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 
@@ -48,6 +50,10 @@ public final class SampleGlobalStep<S> extends CollectingBarrierStep<S> implemen
     public SampleGlobalStep(final Traversal.Admin traversal, final int amountToSample) {
         super(traversal);
         this.amountToSample = amountToSample;
+    }
+
+    public int getAmountToSample() {
+        return amountToSample;
     }
 
     @Override
@@ -79,7 +85,7 @@ public final class SampleGlobalStep<S> extends CollectingBarrierStep<S> implemen
     @Override
     public void processAllStarts() {
         while (this.starts.hasNext()) {
-            this.traverserSet.add(this.createProjectedTraverser(this.starts.next()));
+            this.createProjectedTraverser(this.starts.next()).ifPresent(traverserSet::add);
         }
     }
 
@@ -124,8 +130,20 @@ public final class SampleGlobalStep<S> extends CollectingBarrierStep<S> implemen
     }
 
 
-    private final ProjectedTraverser<S, Number> createProjectedTraverser(final Traverser.Admin<S> traverser) {
-        return new ProjectedTraverser<>(traverser, Collections.singletonList(TraversalUtil.apply(traverser, this.probabilityTraversal)));
+    private Optional<ProjectedTraverser<S, Number>> createProjectedTraverser(final Traverser.Admin<S> traverser) {
+        final TraversalProduct product = TraversalUtil.produce(traverser, this.probabilityTraversal);
+        if (product.isProductive()) {
+            final Object o = product.get();
+            if (!(o instanceof Number)) {
+                throw new IllegalStateException(String.format(
+                        "Traverser %s does not evaluate to a number with %s", traverser, this.probabilityTraversal));
+            }
+
+            return Optional.of(new ProjectedTraverser<>(traverser, Collections.singletonList((Number) product.get())));
+        } else {
+            return Optional.empty();
+        }
+
     }
 
     @Override

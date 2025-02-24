@@ -42,20 +42,22 @@ import org.junit.AssumptionViolatedException;
 import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.tinkerpop.gremlin.LoadGraphWith.GraphData;
 
 @RunWith(Cucumber.class)
 @CucumberOptions(
-        tags = "not @RemoteOnly and not @GraphComputerOnly",
+        tags = "not @RemoteOnly and not @GraphComputerOnly and not @TinkerServiceRegistry and not @GraphComputerVerificationElementSupported",
         glue = { "org.apache.tinkerpop.gremlin.features" },
         objectFactory = GuiceFactory.class,
-        features = { "../gremlin-test/features" },
-        plugin = {"pretty", "junit:target/cucumber.xml"})
+        features = { "classpath:/org/apache/tinkerpop/gremlin/test/features" },
+        plugin = {"progress", "junit:target/cucumber.xml"})
 public class HadoopGraphFeatureIntegrateTest {
     private static final String skipReasonLength = "Hadoop-Gremlin is OLAP-oriented and for OLTP operations, linear-scan joins are required. This particular tests takes many minutes to execute.";
 
@@ -140,6 +142,11 @@ public class HadoopGraphFeatureIntegrateTest {
                 put(Constants.GREMLIN_HADOOP_OUTPUT_LOCATION, getWorkingDirectory());
                 put(Constants.GREMLIN_HADOOP_JARS_IN_DISTRIBUTED_CACHE, false);
             }};
+        }
+
+        @Override
+        public boolean useParametersLiterally() {
+            return false;
         }
     }
 

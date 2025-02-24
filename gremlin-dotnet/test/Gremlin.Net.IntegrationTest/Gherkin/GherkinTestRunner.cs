@@ -38,48 +38,45 @@ using Xunit.Abstractions;
 
 namespace Gremlin.Net.IntegrationTest.Gherkin
 {
+    [CollectionDefinition(nameof(GherkinTestDefinition), DisableParallelization = true)]
+    public class GherkinTestDefinition { }
+
+    [Collection(nameof(GherkinTestDefinition))]
     public class GherkinTestRunner
     {
         private static readonly IDictionary<string, IgnoreReason> IgnoredScenarios =
             new Dictionary<string, IgnoreReason>
             {
                 // Add here the name of scenarios to ignore and the reason, e.g.:
-                {"g_V_group_byXageX", IgnoreReason.NullKeysInMapNotSupported},
-
-                // they are not failing as a result of the Gremlin itself - they are failing because of shortcomings in
-                // the test suite.
-                // https://issues.apache.org/jira/browse/TINKERPOP-2518
-                {"g_withSackX0X_V_outE_sackXsumX_byXweightX_inV_sack_sum", IgnoreReason.NoReason},
-                {"g_V_aggregateXaX_byXageX_capXaX_unfold_sum", IgnoreReason.NoReason},
-                {"g_withSackX0X_V_repeatXoutE_sackXsumX_byXweightX_inVX_timesX2X_sack", IgnoreReason.NoReason},
-                {"g_injectXlistXnull_10_20_nullXX_meanXlocalX", IgnoreReason.NoReason},
-                {"g_injectXnull_10_20_nullX_mean", IgnoreReason.NoReason},
-                {"g_injectXnull_10_5_nullX_sum", IgnoreReason.NoReason},
-                {"g_injectXlistXnull_10_5_nullXX_sumXlocalX", IgnoreReason.NoReason},
-                {
-                    "g_addVXpersonX_propertyXname_joshX_propertyXage_nullX",
-                    IgnoreReason.NoReason
-                },
-                {
-                    "g_addVXpersonX_propertyXname_markoX_propertyXfriendWeight_null_acl_nullX",
-                    IgnoreReason.NoReason
-                },
-                {
-                    "g_addEXknowsXpropertyXweight_nullXfromXV_hasXname_markoXX_toXV_hasXname_vadasXX",
-                    IgnoreReason.NoReason
-                },
-                {
-                    "g_withBulkXfalseX_withSackX1_sumX_VX1X_localXoutEXknowsX_barrierXnormSackX_inVX_inXknowsX_barrier_sack",
-                    IgnoreReason.NoReason
-                },
-                {
-                    "g_withSackX1_sumX_VX1X_localXoutXknowsX_barrierXnormSackXX_inXknowsX_barrier_sack",
-                    IgnoreReason.NoReason
-                },
-                {
-                    "g_V_hasXperson_name_markoX_bothXknowsX_groupCount_byXvaluesXnameX_foldX",
-                    IgnoreReason.ArrayKeysInMapNotAssertingInGherkin
-                },
+                {"g_withStrategiesXProductiveByStrategyX_V_group_byXageX", IgnoreReason.NullKeysInMapNotSupported},
+                {"g_withStrategiesXProductiveByStrategyX_V_groupCount_byXageX", IgnoreReason.NullKeysInMapNotSupported},
+                {"g_withoutStrategiesXCountStrategyX_V_count", IgnoreReason.NoReason}, // needs investigation
+                {"g_withoutStrategiesXLazyBarrierStrategyX_V_asXlabelX_aggregateXlocal_xX_selectXxX_selectXlabelX", IgnoreReason.NoReason},
+                {"g_V_outXcreatedX_hasXname__mapXlengthX_isXgtX3XXX_name", IgnoreReason.LambdasNotTranslated},
+                {"g_V_filterXfalseX", IgnoreReason.LambdasNotTranslated},
+                {"g_V_filterXtrueX", IgnoreReason.LambdasNotTranslated},
+                {"g_V_filterXlang_eq_javaX", IgnoreReason.LambdasNotTranslated},
+                {"g_VX1X_filterXage_gt_30X", IgnoreReason.LambdasNotTranslated},
+                {"g_VX2X_filterXage_gt_30X", IgnoreReason.LambdasNotTranslated},
+                {"g_VX1X_out_filterXage_gt_30X", IgnoreReason.LambdasNotTranslated},
+                {"g_V_filterXname_startsWith_m_OR_name_startsWith_pX", IgnoreReason.LambdasNotTranslated},
+                {"g_E_filterXfalseX", IgnoreReason.LambdasNotTranslated},
+                {"g_E_filterXtrueX", IgnoreReason.LambdasNotTranslated},
+                {"g_VX1X_mapXnameX", IgnoreReason.LambdasNotTranslated},
+                {"g_VX1X_outE_label_mapXlengthX", IgnoreReason.LambdasNotTranslated},
+                {"g_VX1X_out_mapXnameX_mapXlengthX", IgnoreReason.LambdasNotTranslated},
+                {"g_VX1X_out_mapXlambdaXnameXX_mapXlambdaXlengthXX", IgnoreReason.LambdasNotTranslated},
+                {"g_withPath_V_asXaX_out_mapXa_nameX", IgnoreReason.LambdasNotTranslated},
+                {"g_withPath_V_asXaX_out_out_mapXa_name_it_nameX", IgnoreReason.LambdasNotTranslated},
+                {"g_V_valueMap_unfold_mapXkeyX", IgnoreReason.LambdasNotTranslated},
+                {"g_V_hasLabelXpersonX_order_byXvalueXageX_descX_name", IgnoreReason.LambdasNotTranslated},
+                {"g_VX1X_hasXlabel_personX_mapXmapXint_ageXX_orderXlocalX_byXvalues_descX_byXkeys_ascX", IgnoreReason.LambdasNotTranslated},
+                {"g_V_group_byXname_substring_1X_byXconstantX1XX", IgnoreReason.LambdasNotTranslated},
+                {"g_VX1X_out_name_injectXdanielX_asXaX_mapXlengthX_path", IgnoreReason.LambdasNotTranslated},
+                {"g_V_groupXaX_byXname_substring_1X_byXconstantX1XX_capXaX", IgnoreReason.LambdasNotTranslated},
+                {"g_V_repeatXbothX_untilXname_eq_marko_or_loops_gt_1X_groupCount_byXnameX", IgnoreReason.LambdasNotTranslated},
+                {"g_V_chooseXlabel_eqXpersonX__outXknowsX__inXcreatedXX_name", IgnoreReason.LambdasNotTranslated},
+                {"g_V_branchXlabel_eq_person__a_bX_optionXa__ageX_optionXb__langX_optionXb__nameX", IgnoreReason.LambdasNotTranslated},
             };
 
         private static class Keywords
@@ -137,14 +134,14 @@ namespace Gremlin.Net.IntegrationTest.Gherkin
                         continue;
                     }
 
-                    if (feature.Tags.Select(t => t.Name).ToList().Contains("@AllowNullPropertyValues"))
+                    if (scenario.Tags.Any(t => t.Name == "@AllowNullPropertyValues"))
                     {
                         failedSteps.Add(scenario.Steps.First(), new IgnoreException(IgnoreReason.NullPropertyValuesNotSupportedOnTestGraph));
                         continue;
                     }
 
                     StepBlock? currentStep = null;
-                    StepDefinition stepDefinition = null;
+                    StepDefinition? stepDefinition = null;
                     foreach (var step in scenario.Steps)
                     {
                         var previousStep = currentStep;
@@ -207,16 +204,12 @@ namespace Gremlin.Net.IntegrationTest.Gherkin
                 foreach (var resultScenario in resultFeature.Scenarios)
                 {
                     totalScenarios++;
-                    WriteOutput($"  Scenario: {resultScenario.Key.Name}");
                     foreach (var step in resultScenario.Key.Steps)
                     {
                         resultScenario.Value.TryGetValue(step, out var failure);
-                        if (failure == null)
+                        if (failure != null)
                         {
-                            WriteOutput($"    {step.Keyword} {step.Text}");
-                        }
-                        else
-                        {
+                            WriteOutput($"  Scenario: {resultScenario.Key.Name}");
                             if (failure is IgnoreException)
                             {
                                 totalIgnored++;
@@ -272,13 +265,13 @@ namespace Gremlin.Net.IntegrationTest.Gherkin
             }
         }
 
-        private Exception ExecuteStep(StepDefinition instance, StepBlock stepBlock, Step step)
+        private Exception? ExecuteStep(StepDefinition instance, StepBlock stepBlock, Step step)
         {
             var attribute = Attributes[stepBlock];
             var methodAndParameters = instance.GetType().GetMethods()
                 .Select(m =>
                 {
-                    var attr = (BddAttribute) m.GetCustomAttribute(attribute);
+                    var attr = (BddAttribute?) m.GetCustomAttribute(attribute);
                     
                     if (attr == null)
                     {
@@ -289,7 +282,7 @@ namespace Gremlin.Net.IntegrationTest.Gherkin
                     {
                         return null;
                     }
-                    var parameters = new List<object>();
+                    var parameters = new List<object?>();
                     for (var i = 1; i < match.Groups.Count; i++)
                     {
                         parameters.Add(match.Groups[i].Value);
@@ -392,7 +385,7 @@ namespace Gremlin.Net.IntegrationTest.Gherkin
             {
                 throw new InvalidOperationException($"No step definition class matches Given '{stepText}'");
             }
-            return (StepDefinition) Activator.CreateInstance(type);
+            return (StepDefinition) Activator.CreateInstance(type)!;
         }
 
         private ICollection<Type> GetStepDefinitionTypes()
@@ -411,7 +404,7 @@ namespace Gremlin.Net.IntegrationTest.Gherkin
         private IEnumerable<Feature> GetFeatures()
         {
             var rootPath = GetRootPath();
-            var path = Path.Combine(rootPath, "gremlin-test", "features");
+            var path = Path.Combine(rootPath, "gremlin-test", "src", "main", "resources", "org", "apache", "tinkerpop", "gremlin", "test", "features");
             var files = Directory.GetFiles(path, "*.feature", SearchOption.AllDirectories);
             foreach (var gherkinFile in files)
             {
@@ -423,11 +416,11 @@ namespace Gremlin.Net.IntegrationTest.Gherkin
 
         private string GetRootPath()
         {
-            var codeBaseUrl = new Uri(GetType().GetTypeInfo().Assembly.CodeBase);
+            var codeBaseUrl = new Uri(GetType().GetTypeInfo().Assembly.Location);
             var codeBasePath = Uri.UnescapeDataString(codeBaseUrl.AbsolutePath);
-            DirectoryInfo rootDir = null;
-            for (var dir = Directory.GetParent(Path.GetDirectoryName(codeBasePath));
-                dir.Parent != null;
+            DirectoryInfo? rootDir = null;
+            for (var dir = Directory.GetParent(Path.GetDirectoryName(codeBasePath)!);
+                dir!.Parent != null;
                 dir = dir.Parent)
             {
                 if (dir.Name == "gremlin-dotnet" && dir.GetFiles("pom.xml").Length == 1)

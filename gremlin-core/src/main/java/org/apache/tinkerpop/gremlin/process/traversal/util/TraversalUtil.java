@@ -34,39 +34,57 @@ public final class TraversalUtil {
     private TraversalUtil() {
     }
 
-    public static final <S, E> E apply(final Traverser.Admin<S> traverser, final Traversal.Admin<S, E> traversal) {
-        final Traverser.Admin<S> split = traverser.split();
-        split.setSideEffects(traversal.getSideEffects());
-        split.setBulk(1l);
-        traversal.reset();
-        traversal.addStart(split);
+    public static <S, E> E apply(final Traverser.Admin<S> traverser, final Traversal.Admin<S, E> traversal) {
+        final Traverser<S> split = prepare(traverser, traversal);
         try {
             return traversal.next(); // map
         } catch (final NoSuchElementException e) {
-            throw new IllegalArgumentException("The provided traverser does not map to a value: " + split + "->" + traversal);
+            final String clazzOfTraverserValue = null == split.get() ? "null" : split.get().getClass().getSimpleName();
+            throw new IllegalArgumentException(String.format("The provided traverser does not map to a value: %s[%s]->%s[%s] parent[%s]",
+                    split, clazzOfTraverserValue, traversal, traversal.getClass().getSimpleName(), traversal.getParent().asStep().getTraversal()));
         } finally {
             //Close the traversal to release any underlying resources.
             CloseableIterator.closeIterator(traversal);
         }
     }
 
-    public static final <S, E> Iterator<E> applyAll(final Traverser.Admin<S> traverser, final Traversal.Admin<S, E> traversal) {
-        final Traverser.Admin<S> split = traverser.split();
-        split.setSideEffects(traversal.getSideEffects());
-        split.setBulk(1l);
+    public static <S, E> E apply(final S start, final Traversal.Admin<S, E> traversal) {
         traversal.reset();
-        traversal.addStart(split);
+        traversal.addStart(traversal.getTraverserGenerator().generate(start, traversal.getStartStep(), 1l));
+        try {
+            return traversal.next(); // map
+        } catch (final NoSuchElementException e) {
+            throw new IllegalArgumentException("The provided start does not map to a value: " + start + "->" + traversal);
+        } finally {
+            //Close the traversal to release any underlying resources.
+            CloseableIterator.closeIterator(traversal);
+        }
+    }
+
+    public static <S, E> E applyNullable(final S start, final Traversal.Admin<S, E> traversal) {
+        return null == traversal ? (E) start : TraversalUtil.apply(start, traversal);
+    }
+
+    public static <S, E> E applyNullable(final Traverser.Admin<S> traverser, final Traversal.Admin<S, E> traversal) {
+        return null == traversal ? (E) traverser.get() : TraversalUtil.apply(traverser, traversal);
+    }
+
+    public static <S, E> Iterator<E> applyAll(final Traverser.Admin<S> traverser, final Traversal.Admin<S, E> traversal) {
+        prepare(traverser, traversal);
         return traversal; // flatmap
     }
 
-    public static final <S, E> boolean test(final Traverser.Admin<S> traverser, final Traversal.Admin<S, E> traversal, E end) {
+    public static <S, E> Iterator<E> applyAll(final S start, final Traversal.Admin<S, E> traversal) {
+        traversal.reset();
+        traversal.addStart(traversal.getTraverserGenerator().generate(start, traversal.getStartStep(), 1l));
+        return traversal; // flatMap
+    }
+
+    public static <S, E> boolean test(final Traverser.Admin<S> traverser, final Traversal.Admin<S, E> traversal, E end) {
         if (null == end) return TraversalUtil.test(traverser, traversal);
 
-        final Traverser.Admin<S> split = traverser.split();
-        split.setSideEffects(traversal.getSideEffects());
-        split.setBulk(1l);
-        traversal.reset();
-        traversal.addStart(split);
+        prepare(traverser, traversal);
+
         final Step<?, E> endStep = traversal.getEndStep();
         boolean result = false;
         while (traversal.hasNext()) {
@@ -83,17 +101,44 @@ public final class TraversalUtil {
         return result;
     }
 
-    public static final <S, E> E applyNullable(final Traverser.Admin<S> traverser, final Traversal.Admin<S, E> traversal) {
-        return null == traversal ? (E) traverser.get() : TraversalUtil.apply(traverser, traversal);
+    public static <S, E> TraversalProduct produce(final Traverser.Admin<S> traverser, final Traversal.Admin<S, E> traversal) {
+        if (null == traversal) {
+            return new TraversalProduct(traverser.get());
+        } else {
+            prepare(traverser, traversal);
+            try {
+                if (traversal.hasNext()) {
+                    return new TraversalProduct(traversal.next());
+                } else {
+                    return TraversalProduct.UNPRODUCTIVE;
+                }
+            } finally {
+                CloseableIterator.closeIterator(traversal);
+            }
+        }
     }
 
-    public static final <S, E> boolean test(final Traverser.Admin<S> traverser, final Traversal.Admin<S, E> traversal) {
-        final Traverser.Admin<S> split = traverser.split();
-        split.setSideEffects(traversal.getSideEffects());
-        split.setBulk(1l);
-        traversal.reset();
-        traversal.addStart(split);
-        boolean val =  traversal.hasNext(); // filter
+    public static <S, E> TraversalProduct produce(final S start, final Traversal.Admin<S, E> traversal) {
+        if (null == traversal) {
+            return new TraversalProduct(start);
+        } else {
+            traversal.reset();
+            traversal.addStart(traversal.getTraverserGenerator().generate(start, traversal.getStartStep(), 1L));
+            try {
+                if (traversal.hasNext()) {
+                    return new TraversalProduct(traversal.next());
+                } else {
+                    return TraversalProduct.UNPRODUCTIVE;
+                }
+            } finally {
+                CloseableIterator.closeIterator(traversal);
+            }
+        }
+    }
+
+    public static <S, E> boolean test(final Traverser.Admin<S> traverser, final Traversal.Admin<S, E> traversal) {
+        prepare(traverser, traversal);
+        final boolean val =  traversal.hasNext(); // filter
 
         //Close the traversal to release any underlying resources.
         CloseableIterator.closeIterator(traversal);
@@ -101,28 +146,7 @@ public final class TraversalUtil {
         return val;
     }
 
-    ///////
-
-    public static final <S, E> E apply(final S start, final Traversal.Admin<S, E> traversal) {
-        traversal.reset();
-        traversal.addStart(traversal.getTraverserGenerator().generate(start, traversal.getStartStep(), 1l));
-        try {
-            return traversal.next(); // map
-        } catch (final NoSuchElementException e) {
-            throw new IllegalArgumentException("The provided start does not map to a value: " + start + "->" + traversal);
-        } finally {
-            //Close the traversal to release any underlying resources.
-            CloseableIterator.closeIterator(traversal);
-        }
-    }
-
-    public static final <S, E> Iterator<E> applyAll(final S start, final Traversal.Admin<S, E> traversal) {
-        traversal.reset();
-        traversal.addStart(traversal.getTraverserGenerator().generate(start, traversal.getStartStep(), 1l));
-        return traversal; // flatMap
-    }
-
-    public static final <S, E> boolean test(final S start, final Traversal.Admin<S, E> traversal, final E end) {
+    public static <S, E> boolean test(final S start, final Traversal.Admin<S, E> traversal, final E end) {
         if (null == end) return TraversalUtil.test(start, traversal);
 
         traversal.reset();
@@ -143,11 +167,7 @@ public final class TraversalUtil {
         return result;
     }
 
-    public static final <S, E> E applyNullable(final S start, final Traversal.Admin<S, E> traversal) {
-        return null == traversal ? (E) start : TraversalUtil.apply(start, traversal);
-    }
-
-    public static final <S, E> boolean test(final S start, final Traversal.Admin<S, E> traversal) {
+    public static <S, E> boolean test(final S start, final Traversal.Admin<S, E> traversal) {
         traversal.reset();
         traversal.addStart(traversal.getTraverserGenerator().generate(start, traversal.getStartStep(), 1l));
         boolean result = traversal.hasNext(); // filter
@@ -156,5 +176,14 @@ public final class TraversalUtil {
         CloseableIterator.closeIterator(traversal);
 
         return result;
+    }
+
+    public static <S, E> Traverser<S> prepare(final Traverser.Admin<S> traverser, final Traversal.Admin<S, E> traversal) {
+        final Traverser.Admin<S> split = traverser.split();
+        split.setSideEffects(traversal.getSideEffects());
+        split.setBulk(1L);
+        traversal.reset();
+        traversal.addStart(split);
+        return split;
     }
 }
