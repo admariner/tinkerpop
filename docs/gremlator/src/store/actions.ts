@@ -1,0 +1,2 @@
+export const SET_QUERY_INPUT = 'SET_QUERY_INPUT';
+export const TRANSLATE_QUERY = 'TRANSLATE_QUERY';
