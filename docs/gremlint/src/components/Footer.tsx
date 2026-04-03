@@ -37,6 +37,11 @@ const Footer = () => (
     <FooterContent>
       <p>Gremlint version: {gremlintVersion}</p>
       <p>Copyright © 2015-2026 The Apache Software Foundation.</p>
+      <p>
+        <a href="https://tinkerpop.apache.org" target="_blank" rel="noreferrer">
+          Apache TinkerPop™
+        </a>
+      </p>
     </FooterContent>
   </CenteredContainer>
 );

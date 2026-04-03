@@ -25,6 +25,8 @@ image::https://raw.githubusercontent.com/apache/tinkerpop/master/docs/static/ima
 [[release-4-0-0]]
 === TinkerPop 4.0.0 (Release Date: NOT OFFICIALLY RELEASED YET)
 
+* Added Gremlator, a single page web application, that translates Gremlin into various programming languages like Javascript and Python.
+
 [[release-4-0-0-beta-2]]
 === TinkerPop 4.0.0-beta.2 (April 1, 2026)
 

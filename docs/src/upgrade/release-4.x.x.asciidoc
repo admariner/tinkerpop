@@ -30,6 +30,17 @@ image::gremlins-wildest-dreams.png[width=185]
 Please see the link:https://github.com/apache/tinkerpop/blob/4.0.0/CHANGELOG.asciidoc#release-4-0-0[changelog] for a
 complete list of all the modifications that are part of this release.
 
+=== Upgrading for Users
+
+==== Gremlator
+
+link:https://gremlator.com[Gremlator] has been rebuilt entirely in JavaScript as a browser-based single-page
+application and is now an official part of the Apache TinkerPop project. It translates Gremlin queries into
+equivalent representations in all supported language variants: Groovy, Java, Python, JavaScript, Go, .NET, and an
+anonymized form. The original gremlator.com was a prototype built by TinkerPop committer Dave Bechberger; the
+previous implementation required Java and a running Gremlin Server, whereas the new version runs entirely in the
+browser with no server infrastructure needed.
+
 == TinkerPop 4.0.0-beta.2
 
 *Release Date: April 1, 2026*

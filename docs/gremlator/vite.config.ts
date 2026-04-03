@@ -16,16 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { State, TRANSLATOR_KEYS } from './types';
 
-const emptyTranslations = Object.fromEntries(
-  TRANSLATOR_KEYS.map((key) => [key, ''])
-) as State['translations'];
+/// <reference types="vitest" />
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-const initialState: State = {
-  queryInput: '',
-  translations: emptyTranslations,
-  error: null,
-};
-
-export default initialState;
+export default defineConfig({
+  plugins: [react()],
+  base: '/gremlator',
+  esbuild: {
+    keepNames: true,
+  },
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+    extensions: ['.mjs', '.ts', '.js', '.mts', '.jsx', '.tsx', '.json'],
+  },
+  server: {
+    fs: {
+      allow: ['..'],
+    },
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
+});

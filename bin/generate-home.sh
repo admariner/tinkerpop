@@ -44,11 +44,11 @@ hash rsync 2> /dev/null
 if [ $? -eq 0 ]; then
   rsync -avq docs/site/home target/site --exclude template
   rsync -avq docs/gremlint/dist/ target/site/home/gremlint
-  rsync -avq docs/gremlator/build/ target/site/home/gremlator
+  rsync -avq docs/gremlator/dist/ target/site/home/gremlator
 else
   cp -R docs/site/home target/site
   cp -R docs/gremlint/dist/. target/site/home/gremlint
-  cp -R docs/gremlator/build/. target/site/home/gremlator
+  cp -R docs/gremlator/dist/. target/site/home/gremlator
   rm -rf target/site/home/template
 fi
 
