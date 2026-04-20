@@ -16,34 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { State, TRANSLATOR_KEYS } from './types';
 
-import styled from 'styled-components';
-import CenteredContainer from './CenteredContainer';
-import { textColor } from '../styleVariables';
-import lockFile from '../../package-lock.json';
+const emptyTranslations = Object.fromEntries(
+  TRANSLATOR_KEYS.map((key) => [key, ''])
+) as State['translations'];
 
-const gremlintVersion = lockFile.packages['node_modules/gremlint'].version;
+const initialState: State = {
+  queryInput: '',
+  translations: emptyTranslations,
+  error: null,
+};
 
-const FooterContent = styled.div`
-  padding: 10px;
-  color: ${textColor};
-  font-size: 15px;
-  text-align: center;
-  line-height: 20px;
-`;
-
-const Footer = () => (
-  <CenteredContainer>
-    <FooterContent>
-      <p>Gremlint version: {gremlintVersion}</p>
-      <p>Copyright © 2015-2026 The Apache Software Foundation.</p>
-      <p>
-        <a href="https://tinkerpop.apache.org" target="_blank" rel="noreferrer">
-          Apache TinkerPop™
-        </a>
-      </p>
-    </FooterContent>
-  </CenteredContainer>
-);
-
-export default Footer;
+export default initialState;

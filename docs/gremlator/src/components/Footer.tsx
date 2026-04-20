@@ -16,34 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import styled from 'styled-components';
-import CenteredContainer from './CenteredContainer';
-import { textColor } from '../styleVariables';
 import lockFile from '../../package-lock.json';
 
-const gremlintVersion = lockFile.packages['node_modules/gremlint'].version;
+const gremlinVersion = lockFile.packages['node_modules/gremlin'].version;
 
-const FooterContent = styled.div`
-  padding: 10px;
-  color: ${textColor};
-  font-size: 15px;
+const FooterWrapper = styled.footer`
   text-align: center;
+  padding: 24px;
+  font-size: 0.8rem;
+  color: #888;
+  border-top: 1px solid #e0e0e0;
+  margin-top: 48px;
   line-height: 20px;
 `;
 
 const Footer = () => (
-  <CenteredContainer>
-    <FooterContent>
-      <p>Gremlint version: {gremlintVersion}</p>
-      <p>Copyright © 2015-2026 The Apache Software Foundation.</p>
-      <p>
-        <a href="https://tinkerpop.apache.org" target="_blank" rel="noreferrer">
-          Apache TinkerPop™
-        </a>
-      </p>
-    </FooterContent>
-  </CenteredContainer>
+  <FooterWrapper>
+    <p>Gremlin version: {gremlinVersion}</p>
+    <p>Copyright © 2015-2026 The Apache Software Foundation.</p>
+    <p>
+      <a href="https://tinkerpop.apache.org" target="_blank" rel="noreferrer">
+        Apache TinkerPop™
+      </a>
+    </p>
+  </FooterWrapper>
 );
 
 export default Footer;

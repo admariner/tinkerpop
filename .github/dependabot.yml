@@ -44,6 +44,17 @@ updates:
     ignore:
       - update-types: [ "version-update:semver-patch", "version-update:semver-minor" ]
         dependency-name: "*"
+  - package-ecosystem: "npm"
+    directory: "/docs/gremlator"
+    schedule:
+      interval: "monthly"
+    target-branch: "master"
+    labels:
+      - "site"
+      - "dependencies"
+    ignore:
+      - update-types: [ "version-update:semver-patch", "version-update:semver-minor" ]
+        dependency-name: "*"
   - package-ecosystem: "gomod"
     directory: "/gremlin-go"
     schedule:

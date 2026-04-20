@@ -16,34 +16,42 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+export type TranslatorKey =
+  | 'CANONICAL'
+  | 'JAVASCRIPT'
+  | 'PYTHON'
+  | 'GO'
+  | 'DOTNET'
+  | 'JAVA'
+  | 'GROOVY'
+  | 'ANONYMIZED';
 
-import styled from 'styled-components';
-import CenteredContainer from './CenteredContainer';
-import { textColor } from '../styleVariables';
-import lockFile from '../../package-lock.json';
+export const TRANSLATOR_KEYS: TranslatorKey[] = [
+  'CANONICAL',
+  'JAVASCRIPT',
+  'PYTHON',
+  'GO',
+  'DOTNET',
+  'JAVA',
+  'GROOVY',
+  'ANONYMIZED',
+];
 
-const gremlintVersion = lockFile.packages['node_modules/gremlint'].version;
+export const TRANSLATOR_DISPLAY_NAMES: Record<TranslatorKey, string> = {
+  CANONICAL: 'Canonical',
+  JAVASCRIPT: 'JavaScript',
+  PYTHON: 'Python',
+  GO: 'Go',
+  DOTNET: '.NET',
+  JAVA: 'Java',
+  GROOVY: 'Groovy',
+  ANONYMIZED: 'Anonymized',
+};
 
-const FooterContent = styled.div`
-  padding: 10px;
-  color: ${textColor};
-  font-size: 15px;
-  text-align: center;
-  line-height: 20px;
-`;
+export type Translations = Record<TranslatorKey, string>;
 
-const Footer = () => (
-  <CenteredContainer>
-    <FooterContent>
-      <p>Gremlint version: {gremlintVersion}</p>
-      <p>Copyright © 2015-2026 The Apache Software Foundation.</p>
-      <p>
-        <a href="https://tinkerpop.apache.org" target="_blank" rel="noreferrer">
-          Apache TinkerPop™
-        </a>
-      </p>
-    </FooterContent>
-  </CenteredContainer>
-);
-
-export default Footer;
+export interface State {
+  queryInput: string;
+  translations: Translations;
+  error: string | null;
+}

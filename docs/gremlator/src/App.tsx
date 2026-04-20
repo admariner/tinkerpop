@@ -16,34 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import React from 'react';
+import styled, { createGlobalStyle } from 'styled-components';
+import Navigator from './components/Navigator';
+import Footer from './components/Footer';
+import QueryTranslator from './views/QueryTranslator';
 
-import styled from 'styled-components';
-import CenteredContainer from './CenteredContainer';
-import { textColor } from '../styleVariables';
-import lockFile from '../../package-lock.json';
-
-const gremlintVersion = lockFile.packages['node_modules/gremlint'].version;
-
-const FooterContent = styled.div`
-  padding: 10px;
-  color: ${textColor};
-  font-size: 15px;
-  text-align: center;
-  line-height: 20px;
+const GlobalStyle = createGlobalStyle`
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+      Ubuntu, Cantarell, sans-serif;
+    background-color: #f4f5f7;
+    color: #222;
+  }
 `;
 
-const Footer = () => (
-  <CenteredContainer>
-    <FooterContent>
-      <p>Gremlint version: {gremlintVersion}</p>
-      <p>Copyright © 2015-2026 The Apache Software Foundation.</p>
-      <p>
-        <a href="https://tinkerpop.apache.org" target="_blank" rel="noreferrer">
-          Apache TinkerPop™
-        </a>
-      </p>
-    </FooterContent>
-  </CenteredContainer>
+const Main = styled.main`
+  padding-top: 60px;
+  min-height: 100vh;
+`;
+
+const App = () => (
+  <>
+    <GlobalStyle />
+    <Navigator />
+    <Main>
+      <QueryTranslator />
+    </Main>
+    <Footer />
+  </>
 );
 
-export default Footer;
+export default App;
