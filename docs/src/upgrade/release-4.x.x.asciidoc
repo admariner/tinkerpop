@@ -41,6 +41,16 @@ anonymized form. The original gremlator.com was a prototype built by TinkerPop c
 previous implementation required Java and a running Gremlin Server, whereas the new version runs entirely in the
 browser with no server infrastructure needed.
 
+==== Removed `uuid` Dependency in gremlin-javascript
+
+The `uuid` npm package has been removed from `gremlin-javascript`. UUID generation now uses the built-in
+`globalThis.crypto.randomUUID()` API, which is available in Node.js 19+ and all modern browsers.
+
+This change has no impact on how UUID values are sent to or received from the server — UUID serialization and
+deserialization in GraphBinary is unchanged. Applications that depend on the `uuid` package solely because
+`gremlin-javascript` brought it in as a transitive dependency should add it directly to their own `package.json`
+if they still need it.
+
 == TinkerPop 4.0.0-beta.2
 
 *Release Date: April 1, 2026*

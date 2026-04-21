@@ -17,14 +17,13 @@
  *  under the License.
  */
 
-import chai from 'chai';
-import { expect } from 'chai';
+import { expect, use, Assertion } from 'chai';
 import { VertexProperty, Property, Vertex, Edge, Path } from '../../lib/structure/graph.js';
 import { deepMembersById, opt } from '../cucumber/element-comparison.js';
 import deepEqual from 'deep-eql';
 
-chai.use(function (chai, chaiUtils) {
-  chai.Assertion.overwriteMethod('members', function (_super) {
+use(function (_chai, chaiUtils) {
+  Assertion.overwriteMethod('members', function (_super) {
     return deepMembersById;
   });
 });

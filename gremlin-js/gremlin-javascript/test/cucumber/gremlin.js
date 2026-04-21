@@ -26,7 +26,6 @@
 
 import * as graphTraversalModule from '../../lib/process/graph-traversal.js';
 import * as traversalModule from '../../lib/process/traversal.js';
-import * as uuid from 'uuid';
 import { TraversalStrategies, VertexProgramStrategy, OptionsStrategy, PartitionStrategy, 
         ReadOnlyStrategy, GraphFilterStrategy, SeedStrategy, SubgraphStrategy, ProductiveByStrategy, 
         LambdaRestrictionStrategy, StandardVerificationStrategy, VertexProgramRestrictionStrategy, 

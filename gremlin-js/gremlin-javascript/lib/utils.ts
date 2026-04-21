@@ -22,8 +22,6 @@
  * @author Jorge Bay Gondra
  */
 
-import * as uuid from 'uuid';
-
 const gremlinVersion = '4.0.0-SNAPSHOT'; // DO NOT MODIFY - Configured automatically by Maven Replacer Plugin
 
 export function toLong(value: number | string) {
@@ -39,8 +37,7 @@ export class Long {
 }
 
 export function getUuid() {
-  // TODO: replace with `globalThis.crypto.randomUUID` once supported Node version is bump to >=19
-  return uuid.v4();
+  return globalThis.crypto.randomUUID();
 }
 
 export const emptyArray = Object.freeze([]) as any as any[];
