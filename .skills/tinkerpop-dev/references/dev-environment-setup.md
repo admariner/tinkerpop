@@ -60,7 +60,7 @@ This checks for Java, Maven, Docker, and optionally Python, Node.js, .NET, and G
 After cloning, verify the basic build works:
 
 ```bash
-mvn clean install
+mvn clean install -DskipTests
 ```
 
 This builds all JVM modules. GLV modules will be skipped unless activated (see below).
@@ -137,4 +137,4 @@ For AI coding agent configuration, see the "Using AI Coding Agents" section in
 
 - See `references/build-java.md` for Java module build details
 - See the GLV-specific reference files for language-specific workflows
-- See `references/documentation.md` for documentation generation
+- See `references/documentation.md` for documentation instructions
