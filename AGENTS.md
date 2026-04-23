@@ -10,6 +10,21 @@ maintain, and validate Apache TinkerPop’s graph computing framework and its mu
 This file must not contradict those documents. If it appears to, treat them as canonical and update this file 
 accordingly.
 
+## Licensing and Provenance
+
+Apache TinkerPop is licensed under Apache License 2.0. Contributions must meet the
+[ASF's Generative Tooling guidance](https://www.apache.org/legal/generative-tooling.html). In particular:
+
+* *Do not copy verbatim from incompatibly licensed sources.* This includes GPL / AGPL / LGPL code, proprietary code,
+  unlicensed snippets, and Stack Overflow / blog / forum excerpts whose licensing is unclear. Reimplement from
+  specifications, standards, or Apache-compatible sources (see the ASF 3rd Party Licensing Policy).
+* *Every new source file needs the ASF license header.* See `bin/asf-license-header.txt` for the canonical form.
+* *Attribute generated work in commits.* When AI tooling authored a non-trivial portion of a change, add a trailer to
+  the commit message, for example: `Assisted-by: AGENT_NAME:MODEL_VERSION [TOOL1] [TOOL2]`. This aligns with the ASF's
+  recommendation on AI provenance tracking.
+* *The contributor remains responsible for what they submit.* Review generated output for licensing, correctness, and
+  style before committing.
+
 ***
 
 ## 1. Project overview
