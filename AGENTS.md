@@ -21,6 +21,21 @@ These local documents are authoritative. If this file appears to contradict them
 - `CONTRIBUTING.md`
 - Developer documentation at `docs/src/dev/**`
 
+## Licensing and Provenance
+
+Apache TinkerPop is licensed under Apache License 2.0. Contributions must meet the 
+[ASF's Generative Tooling guidance](https://www.apache.org/legal/generative-tooling.html). In particular:
+
+* *Do not copy verbatim from incompatibly licensed sources.* This includes GPL / AGPL / LGPL code, proprietary code, 
+unlicensed snippets, and Stack Overflow / blog / forum excerpts whose licensing is unclear. Reimplement from 
+specifications, standards, or Apache-compatible sources (see the ASF 3rd Party Licensing Policy).
+* *Every new source file needs the ASF license header.* See `bin/asf-license-header.txt` for the canonical form.
+* *Attribute generated work in commits.* When AI tooling authored a non-trivial portion of a change, add a trailer to 
+the commit message, for example: `Assisted-by: AGENT_NAME:MODEL_VERSION [TOOL1] [TOOL2]`. This aligns with the ASF's 
+recommendation on AI provenance tracking.
+* *The contributor remains responsible for what they submit.* Review generated output for licensing, correctness, and 
+style before committing.
+
 ## Essential Rules
 
 These rules apply to any AI/IDE assistant operating on this repository.
@@ -45,9 +60,9 @@ These rules apply to any AI/IDE assistant operating on this repository.
 - Don't push to any branch.
 - Don't merge any PR or branch.
 - Don't create tags or releases.
+- Don't add `@author` javadoc (or similar) tags for new files, but do not remove existing ones either.
 
 ### When In Doubt
 
-1. Check `CONTRIBUTING.md` and developer docs under `docs/src/dev/developer/`.
-2. Prefer no change over an unsafe or speculative change.
-3. Ask for clarification.
+1. Prefer no change over an unsafe or speculative change.
+2. Ask for clarification.
